@@ -1,162 +1,486 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>The Armory — Loot Box Opener</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;900&family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  body { background: #06040e; min-height: 100vh; display: flex; align-items: flex-start; justify-content: center; padding: 2rem 1rem 3rem; font-family: 'Nunito', sans-serif; color: #e0d8f0; }
-  #root { width: 100%; max-width: 560px; display: flex; flex-direction: column; align-items: center; }
-  h1 { font-family: 'Cinzel', serif; font-size: 13px; letter-spacing: 5px; color: #6040a0; margin-bottom: 2rem; text-align: center; }
-  #tier-selector { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; margin-bottom: 2rem; }
-  .tier-btn { font-family: 'Cinzel', serif; font-size: 11px; letter-spacing: 1.5px; padding: 7px 14px; border-radius: 4px; border: 1.5px solid; cursor: pointer; background: transparent; transition: all 0.2s; }
-  .tier-btn:hover { transform: translateY(-1px); }
-  #chest-wrap { position: relative; width: 320px; height: 240px; perspective: 800px; margin-bottom: 1.5rem; cursor: pointer; }
-  #burst { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -55%) scale(0); width: 340px; height: 340px; border-radius: 50%; pointer-events: none; opacity: 0; transition: transform 0.5s ease-out, opacity 0.5s ease-out; }
-  .chest-open #burst { transform: translate(-50%, -55%) scale(1); opacity: 1; }
-  @keyframes chest-shake { 0%{transform:translateX(0) rotate(0deg)} 10%{transform:translateX(-6px) rotate(-1.5deg)} 20%{transform:translateX(6px) rotate(1.5deg)} 30%{transform:translateX(-8px) rotate(-2deg)} 40%{transform:translateX(8px) rotate(2deg)} 50%{transform:translateX(-6px) rotate(-1.5deg)} 60%{transform:translateX(7px) rotate(1.8deg)} 70%{transform:translateX(-5px) rotate(-1.2deg)} 80%{transform:translateX(4px) rotate(1deg)} 90%{transform:translateX(-3px) rotate(-0.5deg)} 100%{transform:translateX(0) rotate(0deg)} }
-  .chest-shaking { animation: chest-shake 0.7s ease-in-out; }
-  @keyframes glow-pulse { 0%,100%{opacity:0;transform:translate(-50%,-55%) scale(0.3)} 50%{opacity:0.5;transform:translate(-50%,-55%) scale(0.6)} }
-  .chest-shaking #burst { animation: glow-pulse 0.7s ease-in-out; }
-  #chest-svg-lid { position: absolute; top: 0; left: 0; width: 320px; height: 90px; transform-origin: bottom center; transform-style: preserve-3d; transition: transform 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94); }
-  .chest-open #chest-svg-lid { transform: rotateX(-115deg) translateY(-10px); }
-  #chest-svg-body { position: absolute; bottom: 0; left: 0; width: 320px; height: 152px; }
-
-  /* Code modal */
-  #code-modal { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; z-index: 100; background: rgba(4,0,12,0.85); opacity: 0; pointer-events: none; transition: opacity 0.25s; }
-  #code-modal.visible { opacity: 1; pointer-events: all; }
-  #code-box { background: #0e0820; border: 1px solid #7040c0; border-radius: 10px; padding: 2rem 2rem 1.5rem; display: flex; flex-direction: column; align-items: center; gap: 14px; max-width: 320px; width: 90%; box-shadow: 0 0 40px rgba(100,40,200,0.3); }
-  #code-title { font-family: 'Cinzel', serif; font-size: 12px; letter-spacing: 3px; color: #c090ff; text-align: center; }
-  #code-subtitle { font-size: 12px; color: #9080b0; text-align: center; line-height: 1.5; }
-  #code-input { font-family: 'Cinzel', serif; font-size: 16px; letter-spacing: 4px; text-transform: uppercase; text-align: center; width: 180px; padding: 10px 14px; background: #06000e; border: 1.5px solid #5020a0; border-radius: 6px; color: #e0d0ff; outline: none; transition: border-color 0.2s; }
-  #code-input:focus { border-color: #9060ff; }
-  #code-input::placeholder { letter-spacing: 2px; color: #3a2060; font-size: 13px; }
-  #code-error { font-size: 11px; color: #ff6060; min-height: 16px; text-align: center; font-style: italic; }
-  .modal-btns { display: flex; gap: 10px; }
-  #code-submit { font-family: 'Cinzel', serif; font-size: 11px; letter-spacing: 1.5px; padding: 9px 22px; border-radius: 4px; cursor: pointer; border: 1.5px solid #a060ff; color: #ffffff; background: transparent; transition: all 0.2s; }
-  #code-submit:hover { background: rgba(120,50,200,0.25); transform: translateY(-1px); }
-  #code-cancel { font-family: 'Cinzel', serif; font-size: 11px; letter-spacing: 1px; padding: 9px 16px; border-radius: 4px; cursor: pointer; border: 1.5px solid #6040a0; color: #d0b8f0; background: transparent; transition: all 0.2s; }
-  #code-cancel:hover { background: rgba(80,50,150,0.15); }
-
-  #items-area { width: 100%; max-width: 460px; }
-  #result-title { font-family: 'Cinzel', serif; font-size: 13px; letter-spacing: 3px; text-align: center; margin-bottom: 1rem; opacity: 0; transition: opacity 0.5s; }
-  #result-title.show { opacity: 1; }
-  #items-list { list-style: none; display: flex; flex-direction: column; gap: 8px; }
-  #items-list li { display: flex; align-items: flex-start; gap: 10px; background: rgba(255,255,255,0.05); border: 0.5px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 11px 14px; opacity: 0; transform: translateY(12px); transition: opacity 0.4s ease, transform 0.4s ease; }
-  #items-list li.show { opacity: 1; transform: translateY(0); }
-  #gold-row { display: flex; align-items: center; gap: 10px; border-radius: 8px; padding: 11px 14px; opacity: 0; transform: translateY(12px); transition: opacity 0.4s ease, transform 0.4s ease; border: 1px solid #c8960a; background: linear-gradient(105deg, rgba(245,200,66,0.13) 0%, rgba(255,220,80,0.07) 60%, rgba(245,160,20,0.13) 100%); margin-bottom: 8px; position: relative; overflow: hidden; }
-  #gold-row::before { content: ''; position: absolute; top: 0; left: -60%; width: 40%; height: 100%; background: linear-gradient(90deg, transparent, rgba(255,240,120,0.18), transparent); animation: shimmer-sweep 2.4s ease-in-out infinite; pointer-events: none; }
-  @keyframes shimmer-sweep { 0%{left:-60%} 100%{left:130%} }
-  #gold-row.show { opacity: 1; transform: translateY(0); }
-  .gold-icon { font-size: 18px; width: 28px; text-align: center; }
-  .gold-text-wrap { flex: 1; }
-  .gold-amount { font-family: 'Cinzel', serif; font-size: 15px; font-weight: 700; background: linear-gradient(90deg,#f5c842,#ffe080,#f5a020,#ffe080,#f5c842); background-size: 200% auto; -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; animation: gold-shine 2.5s linear infinite; letter-spacing: 1px; }
-  .gold-per { font-size: 11px; color: #a07820; margin-top: 2px; font-style: italic; }
-  @keyframes gold-shine { 0%{background-position:0% center} 100%{background-position:200% center} }
-  .gold-label { font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; padding: 3px 9px; border-radius: 4px; background: rgba(245,200,66,0.18); color: #c8960a; border: 0.5px solid rgba(245,200,66,0.4); white-space: nowrap; }
-  .item-left { display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 0; }
-  .item-name { font-size: 13px; font-weight: 700; color: #e0d8f0; line-height: 1.3; }
-  .item-notes { font-size: 11px; color: #9080b0; line-height: 1.3; }
-  .item-rarity { font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; padding: 3px 9px; border-radius: 4px; white-space: nowrap; }
-  .r-Consumable  { background: rgba(58,170,95,0.15);  color: #4acc80; border: 0.5px solid rgba(58,170,95,0.35); }
-  .r-Basic       { background: rgba(74,126,245,0.15);  color: #6090ff; border: 0.5px solid rgba(74,126,245,0.35); }
-  .r-Trade       { background: rgba(245,200,66,0.15);  color: #f5c842; border: 0.5px solid rgba(245,200,66,0.35); }
-  .r-Permanent   { background: rgba(155,89,245,0.15);  color: #b070ff; border: 0.5px solid rgba(155,89,245,0.35); }
-  .r-Special     { background: linear-gradient(90deg,rgba(255,78,205,0.15),rgba(160,32,240,0.15)); color: #e060ff; border: 0.5px solid rgba(192,80,240,0.35); }
-  #open-btn, #try-again-btn { font-family: 'Cinzel', serif; font-size: 13px; letter-spacing: 2px; padding: 11px 30px; border-radius: 4px; cursor: pointer; border: 1.5px solid; transition: all 0.2s; margin-top: 1.2rem; background: transparent; }
-  #open-btn:hover { transform: translateY(-1px); }
-  #try-again-btn { opacity: 0; display: none; color: #6040a0; border-color: #302060; }
-  #try-again-btn:hover { background: rgba(255,255,255,0.05); }
-  #try-again-btn.show { opacity: 1; display: block; }
-  @keyframes fly { 0%{transform:translate(0,0) scale(1);opacity:1} 100%{transform:translate(var(--tx),var(--ty)) scale(0);opacity:0} }
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Nunito:wght@400;600;700&display=swap');
+*{box-sizing:border-box;margin:0;padding:0}
+#wrap{display:flex;flex-direction:column;align-items:center;padding:1.5rem 1rem 2rem;background:#06040e;min-height:600px;font-family:'Nunito',sans-serif}
+#tier-btns{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-bottom:1.2rem}
+.tbtn{font-family:'Cinzel',serif;font-size:11px;letter-spacing:1.5px;padding:7px 14px;border-radius:4px;border:1.5px solid;cursor:pointer;background:transparent;transition:all 0.2s}
+.tbtn:hover{transform:translateY(-1px)}
+#c{display:block;cursor:pointer;border-radius:8px}
+#tier-label{font-family:'Cinzel',serif;font-size:12px;letter-spacing:4px;margin-top:0.8rem;text-align:center}
+#hint{font-size:11px;color:#5030a0;margin-top:4px;font-style:italic;font-family:'Cinzel',serif;letter-spacing:1px;text-align:center}
+#open-btn{font-family:'Cinzel',serif;font-size:13px;letter-spacing:2px;padding:10px 28px;border-radius:4px;cursor:pointer;border:1.5px solid;transition:all 0.2s;margin-top:1rem;background:transparent;display:block}
+#open-btn:hover{transform:translateY(-1px)}
+#dm-toggle{position:fixed;bottom:14px;right:16px;font-size:10px;color:#2a1840;cursor:pointer;font-family:'Cinzel',serif;letter-spacing:1px;user-select:none;z-index:50;opacity:0.4;transition:opacity 0.2s}
+#dm-toggle:hover{opacity:1}
+#auth-modal{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;z-index:200;background:rgba(2,0,8,0.88);opacity:0;pointer-events:none;transition:opacity 0.25s}
+#auth-modal.visible{opacity:1;pointer-events:all}
+#auth-box{background:#0c0820;border:1px solid #4a1890;border-radius:10px;padding:2rem 2rem 1.5rem;display:flex;flex-direction:column;align-items:center;gap:14px;max-width:300px;width:90%;box-shadow:0 0 50px rgba(80,20,180,0.3)}
+#auth-identity{font-family:'Cinzel',serif;font-size:15px;letter-spacing:2px;color:#e0c8ff;text-align:center;padding:8px 20px;border:1px solid #5a20a0;border-radius:6px;background:rgba(80,20,160,0.15);width:100%}
+#auth-label{font-size:11px;color:#6040a0;letter-spacing:1px;font-family:'Cinzel',serif;text-align:center}
+#auth-input{font-family:'Cinzel',serif;font-size:20px;letter-spacing:6px;text-align:center;width:140px;padding:10px 14px;background:#06000e;border:1.5px solid #4a1890;border-radius:6px;color:#e0d0ff;outline:none;transition:border-color 0.2s}
+#auth-input:focus{border-color:#8040e0}
+#auth-input::placeholder{color:#2a1050;letter-spacing:3px}
+#auth-error{font-size:11px;color:#ff6060;min-height:16px;text-align:center;font-style:italic}
+.auth-btns{display:flex;gap:10px}
+#auth-submit{font-family:'Cinzel',serif;font-size:11px;letter-spacing:1.5px;padding:9px 22px;border-radius:4px;cursor:pointer;border:1.5px solid #8040e0;color:#ffffff;background:transparent;transition:all 0.2s}
+#auth-submit:hover{background:rgba(120,50,200,0.2);transform:translateY(-1px)}
+#auth-cancel{font-family:'Cinzel',serif;font-size:11px;letter-spacing:1px;padding:9px 16px;border-radius:4px;cursor:pointer;border:1.5px solid #3a1860;color:#c0a0e8;background:transparent;transition:all 0.2s}
+#auth-cancel:hover{background:rgba(60,20,100,0.2)}
+#dm-panel{width:100%;max-width:460px;margin-top:1rem;background:rgba(60,10,120,0.12);border:1px solid #3a1060;border-radius:8px;padding:1rem 1.2rem;display:none}
+#dm-panel.visible{display:block}
+#dm-panel-title{font-family:'Cinzel',serif;font-size:10px;letter-spacing:3px;color:#6030a0;margin-bottom:0.8rem;display:flex;justify-content:space-between;align-items:center}
+#dm-close{font-size:11px;color:#4a2080;cursor:pointer;font-family:'Cinzel',serif;letter-spacing:1px}
+#dm-close:hover{color:#9060ff}
+#dm-item-display{min-height:36px;display:flex;align-items:center;gap:10px;margin-bottom:0.8rem}
+#dm-item-name{font-size:13px;color:#c090ff;font-weight:700;flex:1}
+#dm-clear-btn{font-size:10px;color:#ff6060;cursor:pointer;border:0.5px solid rgba(255,80,80,0.3);border-radius:4px;padding:3px 8px;font-family:'Cinzel',serif;letter-spacing:1px;display:none}
+#dm-clear-btn:hover{background:rgba(255,80,80,0.1)}
+.dm-row{display:flex;gap:8px;margin-bottom:0.6rem}
+#dm-select{flex:1;font-family:'Nunito',sans-serif;font-size:12px;padding:7px 10px;background:#0a0018;border:1px solid #3a1060;border-radius:4px;color:#c090ff;outline:none}
+#dm-select option{background:#0a0018;color:#c090ff}
+#dm-custom-input{flex:1;font-family:'Nunito',sans-serif;font-size:12px;padding:7px 10px;background:#0a0018;border:1px solid #3a1060;border-radius:4px;color:#c090ff;outline:none;display:none}
+#dm-custom-input::placeholder{color:#3a1060}
+#dm-type-select{font-family:'Nunito',sans-serif;font-size:12px;padding:7px 10px;background:#0a0018;border:1px solid #3a1060;border-radius:4px;color:#9060c0;outline:none;display:none;width:130px}
+#dm-type-select option{background:#0a0018}
+#dm-add-btn{font-family:'Cinzel',serif;font-size:10px;letter-spacing:1.5px;padding:7px 16px;border-radius:4px;cursor:pointer;border:1px solid #6030a0;color:#c090ff;background:transparent;transition:all 0.2s;white-space:nowrap}
+#dm-add-btn:hover{background:rgba(120,40,200,0.2)}
+#dm-status{font-size:11px;color:#4a2080;text-align:center;font-style:italic;min-height:16px}
+#dm-refresh-btn{font-size:10px;color:#6040a0;cursor:pointer;font-family:'Cinzel',serif;letter-spacing:1px;padding:3px 8px;border:0.5px solid #3a1060;border-radius:4px}
+#dm-refresh-btn:hover{color:#9060ff;border-color:#6030a0}
+#items-area{width:100%;max-width:460px;margin-top:1.2rem}
+#result-title{font-family:'Cinzel',serif;font-size:13px;letter-spacing:3px;text-align:center;margin-bottom:0.8rem;opacity:0;transition:opacity 0.5s}
+#result-title.show{opacity:1}
+#items-list{list-style:none;display:flex;flex-direction:column;gap:8px}
+#items-list li{display:flex;align-items:flex-start;gap:10px;background:rgba(255,255,255,0.05);border:0.5px solid rgba(255,255,255,0.1);border-radius:8px;padding:11px 14px;opacity:0;transform:translateY(12px);transition:opacity 0.4s ease,transform 0.4s ease;color:#e0d8f0}
+#items-list li.show{opacity:1;transform:translateY(0)}
+#gold-row{display:flex;align-items:center;gap:10px;border-radius:8px;padding:11px 14px;opacity:0;transform:translateY(12px);transition:opacity 0.4s ease,transform 0.4s ease;border:1px solid #c8960a;background:linear-gradient(105deg,rgba(245,200,66,0.13) 0%,rgba(255,220,80,0.07) 60%,rgba(245,160,20,0.13) 100%);margin-bottom:8px;position:relative;overflow:hidden}
+#gold-row::before{content:'';position:absolute;top:0;left:-60%;width:40%;height:100%;background:linear-gradient(90deg,transparent,rgba(255,240,120,0.18),transparent);animation:shimmer 2.4s ease-in-out infinite;pointer-events:none}
+@keyframes shimmer{0%{left:-60%}100%{left:130%}}
+#gold-row.show{opacity:1;transform:translateY(0)}
+.gold-amount{font-family:'Cinzel',serif;font-size:15px;font-weight:700;background:linear-gradient(90deg,#f5c842,#ffe080,#f5a020,#ffe080,#f5c842);background-size:200% auto;-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;animation:gshine 2.5s linear infinite;letter-spacing:1px}
+@keyframes gshine{0%{background-position:0% center}100%{background-position:200% center}}
+.gold-per{font-size:11px;color:#a07820;margin-top:2px;font-style:italic}
+.gold-label{font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;padding:3px 9px;border-radius:4px;background:rgba(245,200,66,0.18);color:#c8960a;border:0.5px solid rgba(245,200,66,0.4);white-space:nowrap}
+.item-left{flex:1;min-width:0}
+.item-name{font-size:13px;font-weight:700;line-height:1.3}
+.item-notes{font-size:11px;color:#9080b0;line-height:1.3}
+.item-rarity{font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;padding:3px 9px;border-radius:4px;white-space:nowrap;align-self:center}
+.r-Consumable{background:rgba(58,170,95,0.15);color:#4acc80;border:0.5px solid rgba(58,170,95,0.35)}
+.r-Basic{background:rgba(74,126,245,0.15);color:#6090ff;border:0.5px solid rgba(74,126,245,0.35)}
+.r-Trade{background:rgba(245,200,66,0.15);color:#f5c842;border:0.5px solid rgba(245,200,66,0.35)}
+.r-Permanent{background:rgba(155,89,245,0.15);color:#b070ff;border:0.5px solid rgba(155,89,245,0.35)}
+.r-Special{background:linear-gradient(90deg,rgba(255,78,205,0.15),rgba(160,32,240,0.15));color:#e060ff;border:0.5px solid rgba(192,80,240,0.35)}
+.r-Custom{background:rgba(255,180,0,0.15);color:#ffb800;border:0.5px solid rgba(255,180,0,0.35)}
+#done-btn{font-family:'Cinzel',serif;font-size:12px;letter-spacing:2px;padding:9px 24px;border-radius:4px;cursor:pointer;border:1.5px solid #302060;transition:all 0.2s;margin-top:1rem;background:transparent;color:#6040a0;opacity:0;display:none}
+#done-btn.show{opacity:1;display:block}
+#done-btn:hover{background:rgba(255,255,255,0.05)}
 </style>
-</head>
-<body>
 
-<div id="code-modal">
-  <div id="code-box">
-    <div id="code-title">✦ ENTER YOUR CODE ✦</div>
-    <div id="code-subtitle">Enter the code provided by your DM to unlock your loot box.</div>
-    <input id="code-input" type="text" maxlength="6" placeholder="XXXXXX" autocomplete="off" spellcheck="false"/>
-    <div id="code-error"></div>
-    <div class="modal-btns">
-      <button id="code-cancel" onclick="closeModal()">CANCEL</button>
-      <button id="code-submit" onclick="submitCode()">UNLOCK ↗</button>
+<div id="auth-modal">
+  <div id="auth-box">
+    <div id="auth-identity"></div>
+    <div id="auth-label">ENTER ACCESS CODE</div>
+    <input id="auth-input" type="password" maxlength="5" placeholder="• • • • •" autocomplete="off"/>
+    <div id="auth-error"></div>
+    <div class="auth-btns">
+      <button id="auth-cancel" onclick="closeAuth()">CANCEL</button>
+      <button id="auth-submit" onclick="submitAuth()">ENTER ↗</button>
     </div>
   </div>
 </div>
 
-<div id="root">
-  <h1>THE ARMORY</h1>
-  <div id="tier-selector"></div>
-  <div id="chest-wrap">
-    <div id="burst"></div>
-    <svg id="chest-svg-lid" viewBox="0 0 320 90" xmlns="http://www.w3.org/2000/svg"></svg>
-    <svg id="chest-svg-body" viewBox="0 0 320 152" xmlns="http://www.w3.org/2000/svg"></svg>
+<div id="dm-toggle" onclick="openAuth()">⬡ DM</div>
+
+<div id="wrap">
+  <div id="tier-btns"></div>
+  <canvas id="c" width="420" height="300"></canvas>
+  <div id="tier-label" style="color:#d08040">BRONZE CHEST</div>
+  <div id="hint">click chest or button to open</div>
+  <button id="open-btn" onclick="startOpen()">OPEN CHEST</button>
+
+  <div id="dm-panel">
+    <div id="dm-panel-title">
+      <span>⬡ DM MODE</span>
+      <div style="display:flex;gap:10px;align-items:center">
+        <span id="dm-refresh-btn" onclick="refreshDmQueue()">↻ REFRESH</span>
+        <span id="dm-close" onclick="closeDmPanel()">CLOSE ✕</span>
+      </div>
+    </div>
+    <div id="dm-item-display">
+      <span id="dm-item-name" style="color:#4a2080;font-style:italic">Checking queue...</span>
+      <span id="dm-clear-btn" onclick="clearGuaranteed()">CLEAR ✕</span>
+    </div>
+    <div class="dm-row">
+      <select id="dm-select" onchange="onSelectChange()">
+        <option value="">— pick existing item —</option>
+      </select>
+      <button id="dm-add-btn" onclick="setGuaranteed()">SET ITEM ↗</button>
+    </div>
+    <div class="dm-row">
+      <input id="dm-custom-input" type="text" placeholder="Custom item name..." maxlength="60"/>
+      <select id="dm-type-select">
+        <option value="Consumable">Consumable</option>
+        <option value="Basic Gear/Tools">Gear/Tools</option>
+        <option value="Trade Goods">Trade Goods</option>
+        <option value="Permanent Magic">Permanent Magic</option>
+        <option value="Special">Special</option>
+      </select>
+    </div>
+    <div id="dm-status"></div>
   </div>
-  <button id="open-btn" onclick="showModal()">OPEN CHEST</button>
-  <div id="items-area" style="margin-top:1.5rem">
+
+  <div id="items-area">
     <div id="result-title"></div>
     <div id="gold-row">
-      <div class="gold-icon">🪙</div>
-      <div class="gold-text-wrap">
-        <div class="gold-amount" id="gold-amount-text"></div>
+      <div style="font-size:18px;width:28px;text-align:center">🪙</div>
+      <div style="flex:1">
+        <div class="gold-amount" id="gold-amt"></div>
         <div class="gold-per">per adventurer</div>
       </div>
       <span class="gold-label">Gold</span>
     </div>
     <ul id="items-list"></ul>
   </div>
-  <button id="try-again-btn" onclick="resetChest()">DONE</button>
+  <button id="done-btn" onclick="resetChest()">OPEN ANOTHER</button>
 </div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
-const CODES={'BRZ4K2':'bronze','BRZ7M9':'bronze','BRZ2X5':'bronze','BRZ8Q1':'bronze','BRZ5T3':'bronze','BRZ1N7':'bronze','BRZ9W4':'bronze','BRZ6P8':'bronze','BRZ3R6':'bronze','BRZ0J2':'bronze','BRZ7H5':'bronze','BRZ4V1':'bronze','BRZ2L9':'bronze','BRZ8C3':'bronze','BRZ5F7':'bronze','BRZ1D4':'bronze','BRZ9G6':'bronze','BRZ6B8':'bronze','BRZ3S2':'bronze','BRZ0Y5':'bronze','BRZ7A1':'bronze','BRZ4E9':'bronze','BRZ2U3':'bronze','BRZ8Z7':'bronze','BRZ5W6':'bronze','SLV3K8':'silver','SLV7M2':'silver','SLV1X9':'silver','SLV5Q4':'silver','SLV9T6':'silver','SLV2N1':'silver','SLV6W7':'silver','SLV4P3':'silver','SLV8R5':'silver','SLV0J9':'silver','SLV3H2':'silver','SLV7V8':'silver','SLV1L4':'silver','SLV5C6':'silver','SLV9F1':'silver','SLV2D7':'silver','SLV6G3':'silver','SLV4B9':'silver','SLV8S5':'silver','SLV0Y2':'silver','SLV3A8':'silver','SLV7E4':'silver','SLV1U6':'silver','SLV5Z1':'silver','SLV9W7':'silver','GLD2K5':'gold','GLD8M3':'gold','GLD4X7':'gold','GLD6Q9':'gold','GLD0T1':'gold','GLD5N8':'gold','GLD1W4':'gold','GLD7P2':'gold','GLD3R6':'gold','GLD9J0':'gold','GLD2H7':'gold','GLD8V3':'gold','GLD4L9':'gold','GLD6C1':'gold','GLD0F5':'gold','GLD5D2':'gold','GLD1G8':'gold','GLD7B4':'gold','GLD3S6':'gold','GLD9Y0':'gold','GLD2A3':'gold','GLD8E7':'gold','GLD4U1':'gold','GLD6Z5':'gold','GLD0W9':'gold','PLT6K1':'platinum','PLT2M7':'platinum','PLT8X3':'platinum','PLT4Q5':'platinum','PLT0T9':'platinum','PLT7N2':'platinum','PLT3W6':'platinum','PLT9P8':'platinum','PLT1R4':'platinum','PLT5J0':'platinum','PLT6H9':'platinum','PLT2V5':'platinum','PLT8L1':'platinum','PLT4C7':'platinum','PLT0F3':'platinum','PLT7D6':'platinum','PLT3G2':'platinum','PLT9B8':'platinum','PLT1S4':'platinum','PLT5Y0':'platinum','PLT6A7':'platinum','PLT2E3':'platinum','PLT8U9':'platinum','PLT4Z5':'platinum','PLT0W1':'platinum','DMD9K4':'diamond','DMD3M8':'diamond','DMD7X2':'diamond','DMD1Q6':'diamond','DMD5T0':'diamond','DMD8N3':'diamond','DMD4W9':'diamond','DMD0P5':'diamond','DMD6R1':'diamond','DMD2J7':'diamond','DMD9H6':'diamond','DMD3V2':'diamond','DMD7L8':'diamond','DMD1C4':'diamond','DMD5F0':'diamond','DMD8D3':'diamond','DMD4G9':'diamond','DMD0B5':'diamond','DMD6S1':'diamond','DMD2Y7':'diamond','DMD9A4':'diamond','DMD3E8':'diamond','DMD7U2':'diamond','DMD1Z6':'diamond','DMD5W0':'diamond','ONX4K7':'onyx','ONX8M1':'onyx','ONX2X9':'onyx','ONX6Q3':'onyx','ONX0T5':'onyx','ONX9N4':'onyx','ONX5W8':'onyx','ONX1P2':'onyx','ONX7R6':'onyx','ONX3J0':'onyx','ONX4H1':'onyx','ONX8V7':'onyx','ONX2L3':'onyx','ONX6C9':'onyx','ONX0F5':'onyx','ONX9D2':'onyx','ONX5G6':'onyx','ONX1B8':'onyx','ONX7S4':'onyx','ONX3Y0':'onyx','ONX4A9':'onyx','ONX8E5':'onyx','ONX2U1':'onyx','ONX6Z7':'onyx','ONX0W3':'onyx'};
-const STORAGE_KEY='armory_used_codes';
-function getUsedCodes(){try{return JSON.parse(localStorage.getItem(STORAGE_KEY)||'[]');}catch{return[];}}
-function markCodeUsed(code){const used=getUsedCodes();used.push(code);localStorage.setItem(STORAGE_KEY,JSON.stringify(used));}
-function isCodeUsed(code){return getUsedCodes().includes(code);}
-function showModal(){if(opened||shaking)return;document.getElementById('code-input').value='';document.getElementById('code-error').textContent='';document.getElementById('code-modal').classList.add('visible');setTimeout(()=>document.getElementById('code-input').focus(),100);}
-function closeModal(){document.getElementById('code-modal').classList.remove('visible');}
-function submitCode(){const raw=document.getElementById('code-input').value.trim().toUpperCase();const err=document.getElementById('code-error');if(!raw){err.textContent='Please enter a code.';return;}if(!CODES[raw]){err.textContent='Invalid code. Check with your DM.';return;}if(isCodeUsed(raw)){err.textContent='This code has already been used.';return;}markCodeUsed(raw);const tier=CODES[raw];closeModal();selectTier(tier);setTimeout(()=>triggerOpen(),200);}
+const SCRIPT_URL='https://script.google.com/macros/s/AKfycbw2FoA4Xz3Wp6hRtqmp2jqvZAfeHteRkQnqAZSYLsQuWu0Ze0iOWiSPxy287c059E13/exec';
 
+// ── SHEETS API ────────────────────────────────────────────────────────────────
+function sheetsCall(params){
+  const qs=Object.entries(params).map(([k,v])=>`${encodeURIComponent(k)}=${encodeURIComponent(v)}`).join('&');
+  return fetch(`${SCRIPT_URL}?${qs}`).then(r=>r.json()).catch(()=>null);
+}
+function sheetsRead(){ return sheetsCall({action:'read'}); }
+function sheetsSet(name,type,notes){ return sheetsCall({action:'set',name,type,notes}); }
+function sheetsClear(){ return sheetsCall({action:'clear'}); }
+
+// ── AUTH ──────────────────────────────────────────────────────────────────────
+const CHALLENGES=[{name:'Harry Tasker',code:'10024'},{name:'Albert Gibson',code:'34991'}];
+let currentChallenge=null,dmUnlocked=false;
+
+function openAuth(){
+  if(dmUnlocked){toggleDmPanel();return;}
+  currentChallenge=CHALLENGES[Math.floor(Math.random()*CHALLENGES.length)];
+  document.getElementById('auth-identity').textContent=currentChallenge.name;
+  document.getElementById('auth-input').value='';
+  document.getElementById('auth-error').textContent='';
+  document.getElementById('auth-modal').classList.add('visible');
+  setTimeout(()=>document.getElementById('auth-input').focus(),100);
+}
+function closeAuth(){document.getElementById('auth-modal').classList.remove('visible');}
+function submitAuth(){
+  const val=document.getElementById('auth-input').value.trim();
+  if(val===currentChallenge.code){
+    dmUnlocked=true;closeAuth();showDmPanel();
+    document.getElementById('dm-toggle').style.color='#9060ff';
+    document.getElementById('dm-toggle').style.opacity='0.8';
+  } else {
+    document.getElementById('auth-error').textContent='Access denied.';
+    document.getElementById('auth-input').value='';
+    document.getElementById('auth-input').focus();
+  }
+}
+document.getElementById('auth-input').addEventListener('keydown',e=>{if(e.key==='Enter')submitAuth();});
+
+// ── DM PANEL ──────────────────────────────────────────────────────────────────
+function showDmPanel(){
+  populateDmSelect();
+  refreshDmQueue();
+  document.getElementById('dm-panel').classList.add('visible');
+}
+function toggleDmPanel(){
+  document.getElementById('dm-panel').classList.toggle('visible');
+  if(document.getElementById('dm-panel').classList.contains('visible')){
+    populateDmSelect();refreshDmQueue();
+  }
+}
+function closeDmPanel(){document.getElementById('dm-panel').classList.remove('visible');}
+
+function refreshDmQueue(){
+  setStatus('Checking queue...');
+  sheetsRead().then(data=>{
+    if(data&&data.name){
+      document.getElementById('dm-item-name').textContent=data.name;
+      document.getElementById('dm-item-name').style.color='#c090ff';
+      document.getElementById('dm-item-name').style.fontStyle='normal';
+      document.getElementById('dm-clear-btn').style.display='inline-block';
+      setStatus('Item queued — will deliver on next open.');
+    } else {
+      document.getElementById('dm-item-name').textContent='No guaranteed item set';
+      document.getElementById('dm-item-name').style.color='#4a2080';
+      document.getElementById('dm-item-name').style.fontStyle='italic';
+      document.getElementById('dm-clear-btn').style.display='none';
+      setStatus('');
+    }
+  }).catch(()=>setStatus('Could not reach queue.'));
+}
+
+function populateDmSelect(){
+  const sel=document.getElementById('dm-select');
+  sel.innerHTML='<option value="">— pick existing item —</option>';
+  sel.appendChild(Object.assign(document.createElement('option'),{value:'__custom__',text:'+ Create custom item...'}));
+  LOOT[activeTier].table.forEach((item,i)=>{
+    const opt=document.createElement('option');opt.value=i;opt.text=item.name;sel.appendChild(opt);
+  });
+}
+
+function onSelectChange(){
+  const val=document.getElementById('dm-select').value;
+  const isCustom=val==='__custom__';
+  document.getElementById('dm-custom-input').style.display=isCustom?'block':'none';
+  document.getElementById('dm-type-select').style.display=isCustom?'block':'none';
+}
+
+function setGuaranteed(){
+  const val=document.getElementById('dm-select').value;
+  if(!val){setStatus('Please select an item.');return;}
+  let name,type,notes;
+  if(val==='__custom__'){
+    name=document.getElementById('dm-custom-input').value.trim();
+    if(!name){setStatus('Please enter a custom item name.');return;}
+    type=document.getElementById('dm-type-select').value;
+    notes='DM awarded';
+  } else {
+    const item=LOOT[activeTier].table[+val];
+    name=item.name;type=item.type;notes=item.notes||'';
+  }
+  setStatus('Saving to queue...');
+  sheetsSet(name,type,notes).then(r=>{
+    if(r&&r.ok){
+      refreshDmQueue();
+      setStatus('Item queued successfully.');
+      setTimeout(()=>setStatus(''),2500);
+    } else { setStatus('Failed to save. Check connection.'); }
+  }).catch(()=>setStatus('Failed to reach queue.'));
+}
+
+function clearGuaranteed(){
+  setStatus('Clearing...');
+  sheetsClear().then(()=>{refreshDmQueue();setStatus('Cleared.');setTimeout(()=>setStatus(''),1500);});
+}
+
+function setStatus(msg){document.getElementById('dm-status').textContent=msg;}
+function onTierChange(){if(dmUnlocked&&document.getElementById('dm-panel').classList.contains('visible'))populateDmSelect();}
+
+// ── SPELLS ────────────────────────────────────────────────────────────────────
 const SPELLS={Cantrip:['Acid Splash','Blade Ward','Chill Touch','Dancing Lights','Druidcraft','Eldritch Blast','Fire Bolt','Friends','Guidance','Light','Mage Hand','Mending','Message','Minor Illusion','Poison Spray','Prestidigitation','Ray of Frost','Resistance','Sacred Flame','Shillelagh','Shocking Grasp','Spare the Dying','Thaumaturgy','Thorn Whip','True Strike','Vicious Mockery'],1:['Alarm','Animal Friendship','Bane','Bless','Burning Hands','Charm Person','Chromatic Orb','Color Spray','Command','Comprehend Languages','Cure Wounds','Detect Magic','Disguise Self','Divine Favor','Entangle','Faerie Fire','False Life','Feather Fall','Find Familiar','Fog Cloud','Grease','Guiding Bolt','Healing Word','Hellish Rebuke','Heroism','Hex',"Hunter's Mark",'Ice Knife','Identify','Inflict Wounds','Jump','Longstrider','Mage Armor','Magic Missile','Protection from Evil and Good','Ray of Sickness','Sanctuary','Shield','Shield of Faith','Silent Image','Sleep','Speak with Animals','Thunderwave','Unseen Servant','Witch Bolt'],2:['Aid','Alter Self','Arcane Lock','Augury','Barkskin','Blindness/Deafness','Blur','Calm Emotions','Cloud of Daggers','Darkness','Darkvision','Detect Thoughts','Enhance Ability','Enlarge/Reduce','Flame Blade','Flaming Sphere','Gust of Wind','Heat Metal','Hold Person','Invisibility','Knock','Lesser Restoration','Levitate','Locate Object','Magic Weapon',"Melf's Acid Arrow",'Mirror Image','Misty Step','Moonbeam','Pass without Trace','Phantasmal Force','Prayer of Healing','Scorching Ray','See Invisibility','Shatter','Silence','Spider Climb','Spike Growth','Spiritual Weapon','Suggestion','Web'],3:['Animate Dead','Beacon of Hope','Bestow Curse','Blink','Call Lightning','Clairvoyance','Counterspell','Daylight','Dispel Magic','Fear','Fireball','Fly','Gaseous Form','Haste','Hypnotic Pattern','Lightning Bolt','Major Image','Mass Healing Word','Nondetection','Plant Growth','Protection from Energy','Remove Curse','Revivify','Sending','Slow','Speak with Dead','Spirit Guardians','Stinking Cloud','Tongues','Vampiric Touch','Water Breathing'],4:['Arcane Eye','Banishment','Blight','Confusion','Control Water','Death Ward','Dimension Door','Divination','Dominate Beast','Fabricate','Fire Shield','Freedom of Movement','Greater Invisibility','Guardian of Faith','Ice Storm','Locate Creature','Phantasmal Killer','Polymorph','Stone Shape','Stoneskin','Wall of Fire'],5:['Arcane Hand','Awaken','Cloudkill','Commune','Cone of Cold','Conjure Elemental','Contact Other Plane','Contagion','Creation','Dominate Person','Dream','Flame Strike','Geas','Greater Restoration','Hold Monster','Legend Lore','Mass Cure Wounds','Mislead','Modify Memory','Passwall','Planar Binding','Raise Dead','Scrying','Telekinesis','Teleportation Circle','Wall of Force','Wall of Stone'],6:['Blade Barrier','Chain Lightning','Circle of Death','Conjure Fey','Contingency','Create Undead','Disintegrate','Find the Path','Flesh to Stone','Globe of Invulnerability','Harm','Heal',"Heroes' Feast",'Mass Suggestion','Move Earth','Planar Ally','Sunbeam','True Seeing','Wind Walk'],7:['Conjure Celestial','Delayed Blast Fireball','Etherealness','Finger of Death','Fire Storm','Forcecage','Magnificent Mansion','Plane Shift','Prismatic Spray','Project Image','Regenerate','Resurrection','Reverse Gravity','Symbol','Teleport'],8:['Antimagic Field','Control Weather','Demiplane','Dominate Monster','Earthquake','Feeblemind','Incendiary Cloud','Maze','Mind Blank','Power Word Stun','Sunburst'],9:['Astral Projection','Foresight','Gate','Imprisonment','Mass Heal','Meteor Swarm','Power Word Kill','Prismatic Wall','Shapechange','Time Stop','True Resurrection','Wish']};
 const SCROLL_MAP={'cantrip':'Cantrip','1st':1,'2nd':2,'3rd':3,'4th':4,'5th':5,'6th':6,'7th':7,'8th':8,'9th':9};
-function resolveScrollName(n){if(!n.toLowerCase().includes('spell scroll'))return null;const l=n.toLowerCase();for(const[k,v]of Object.entries(SCROLL_MAP))if(l.includes(k)){const p=SPELLS[v];return p?`Scroll of ${p[Math.floor(Math.random()*p.length)]}`:null;}return null;}
+function resolveScroll(n){if(!n.toLowerCase().includes('spell scroll'))return null;const l=n.toLowerCase();for(const[k,v]of Object.entries(SCROLL_MAP))if(l.includes(k)){const p=SPELLS[v];return p?`Scroll of ${p[Math.floor(Math.random()*p.length)]}`:null;}return null;}
 
-const TIERS={bronze:{label:'Bronze',btnColor:'#c87840',btnBorder:'#7a4818',btnText:'#fff',resultColor:'#d08040',glow:'rgba(180,100,30,0.4)',particles:['#c87840','#e0a060','#f0c080','#fff8e0','#8b5a20'],woodDark:'#2a1408',woodMid:'#3d1e0c',woodLight:'#5c2e12',woodHi:'#7a4020',metalDark:'#3a2008',metalHi:'#c87840',bandDark:'#5a3010',bandMid:'#8b4818',bandHi:'#c06828',gemColor:'#c87840',gemHi:'#f0c080',lockDark:'#2a1408',lockMid:'#6b3818',lockHi:'#c06828',ambientColor:'#8b4820',ambientOpacity:'0.15',dustColor:'#c87840',extraLid:(t)=>`<line x1="38" y1="20" x2="58" y2="52" stroke="${t.woodDark}" stroke-width="1.5" opacity="0.6"/><line x1="220" y1="18" x2="204" y2="48" stroke="${t.woodDark}" stroke-width="1" opacity="0.5"/>`,extraBody:(t)=>`<line x1="36" y1="24" x2="54" y2="88" stroke="${t.woodDark}" stroke-width="1.5" opacity="0.6"/><line x1="248" y1="22" x2="232" y2="82" stroke="${t.woodDark}" stroke-width="1" opacity="0.5"/>`,},
-silver:{label:'Silver',btnColor:'#a0b8cc',btnBorder:'#607888',btnText:'#0a1820',resultColor:'#90b0c8',glow:'rgba(120,160,200,0.4)',particles:['#a0b8cc','#c0d8ec','#e0f0ff','#ffffff','#607888'],woodDark:'#0e1c28',woodMid:'#182838',woodLight:'#243848',woodHi:'#304858',metalDark:'#1a2a38',metalHi:'#90aac0',bandDark:'#243848',bandMid:'#405868',bandHi:'#7090a8',gemColor:'#7090a8',gemHi:'#c0d8ec',lockDark:'#0e1c28',lockMid:'#304858',lockHi:'#7090a8',ambientColor:'#4878a0',ambientOpacity:'0.12',dustColor:'#90b0cc',extraLid:(t)=>`<rect x="24" y="22" width="272" height="1" fill="${t.metalHi}" opacity="0.45"/><rect x="24" y="42" width="272" height="1" fill="${t.metalHi}" opacity="0.3"/>`,extraBody:(t)=>`<rect x="24" y="24" width="272" height="1" fill="${t.metalHi}" opacity="0.4"/><rect x="24" y="60" width="272" height="1" fill="${t.metalHi}" opacity="0.3"/>`,},
-gold:{label:'Gold',btnColor:'#e8b830',btnBorder:'#a07810',btnText:'#100800',resultColor:'#f0c030',glow:'rgba(220,170,40,0.5)',particles:['#f5c842','#ffe080','#fff8dc','#f57c20','#c8960a'],woodDark:'#2a1e00',woodMid:'#3e2e00',woodLight:'#5a4200',woodHi:'#7a5c00',metalDark:'#3a2800',metalHi:'#e8b830',bandDark:'#5a3e00',bandMid:'#8a6200',bandHi:'#c89010',gemColor:'#e8b830',gemHi:'#fff8a0',lockDark:'#2a1a00',lockMid:'#7a5400',lockHi:'#e8b830',ambientColor:'#c09000',ambientOpacity:'0.18',dustColor:'#e8b830',extraLid:(t)=>`<rect x="26" y="22" width="268" height="1.5" fill="${t.bandHi}" opacity="0.35"/><rect x="26" y="42" width="268" height="1.5" fill="${t.bandHi}" opacity="0.25"/>`,extraBody:(t)=>`<rect x="26" y="28" width="268" height="1.5" fill="${t.bandHi}" opacity="0.3"/><rect x="26" y="68" width="268" height="1.5" fill="${t.bandHi}" opacity="0.25"/>`,},
-platinum:{label:'Platinum',btnColor:'#c0d8f0',btnBorder:'#7090b0',btnText:'#081428',resultColor:'#a8d0ec',glow:'rgba(160,210,240,0.45)',particles:['#c0d8f0','#e0f0ff','#ffffff','#80b0d8','#4880b0'],woodDark:'#0a1828',woodMid:'#142238',woodLight:'#1e3050',woodHi:'#2a4060',metalDark:'#0e1e30',metalHi:'#80b0d0',bandDark:'#1a2e48',bandMid:'#304860',bandHi:'#6090b8',gemColor:'#80b0d0',gemHi:'#d0ecff',lockDark:'#0a1828',lockMid:'#304860',lockHi:'#80b0d0',ambientColor:'#3070a0',ambientOpacity:'0.15',dustColor:'#80b0d0',extraLid:(t)=>`<rect x="26" y="20" width="268" height="0.8" fill="${t.metalHi}" opacity="0.4"/><rect x="26" y="20" width="0.8" height="42" fill="${t.metalHi}" opacity="0.28"/><rect x="293" y="20" width="0.8" height="42" fill="${t.metalHi}" opacity="0.28"/>`,extraBody:(t)=>`<rect x="26" y="22" width="268" height="0.8" fill="${t.metalHi}" opacity="0.35"/><rect x="26" y="22" width="0.8" height="78" fill="${t.metalHi}" opacity="0.22"/><rect x="293" y="22" width="0.8" height="78" fill="${t.metalHi}" opacity="0.22"/>`,},
-diamond:{label:'Diamond',btnColor:'#70e0ff',btnBorder:'#2090c0',btnText:'#001828',resultColor:'#50d8ff',glow:'rgba(60,200,255,0.55)',particles:['#70e0ff','#c0f4ff','#ffffff','#20a0d0','#ffe080'],woodDark:'#001428',woodMid:'#002040',woodLight:'#003060',woodHi:'#004880',metalDark:'#001828',metalHi:'#50c0e8',bandDark:'#002040',bandMid:'#004070',bandHi:'#3090c0',gemColor:'#40c0f0',gemHi:'#c0f0ff',lockDark:'#001020',lockMid:'#003060',lockHi:'#40b8e8',ambientColor:'#1080b0',ambientOpacity:'0.2',dustColor:'#60d0ff',extraLid:(t)=>`<line x1="26" y1="16" x2="294" y2="76" stroke="${t.metalHi}" stroke-width="0.6" opacity="0.2"/><line x1="294" y1="16" x2="26" y2="76" stroke="${t.metalHi}" stroke-width="0.6" opacity="0.2"/><line x1="160" y1="14" x2="160" y2="78" stroke="${t.metalHi}" stroke-width="0.6" opacity="0.25"/>`,extraBody:(t)=>`<line x1="26" y1="16" x2="294" y2="134" stroke="${t.metalHi}" stroke-width="0.6" opacity="0.2"/><line x1="294" y1="16" x2="26" y2="134" stroke="${t.metalHi}" stroke-width="0.6" opacity="0.2"/><line x1="160" y1="14" x2="160" y2="136" stroke="${t.metalHi}" stroke-width="0.6" opacity="0.25"/>`,},
-onyx:{label:'Onyx',btnColor:'#a060ff',btnBorder:'#5010c0',btnText:'#fff',resultColor:'#c090ff',glow:'rgba(130,50,240,0.6)',particles:['#c090ff','#7040e0','#ff60d0','#00e8ff','#ffffff'],woodDark:'#0a0018',woodMid:'#140030',woodLight:'#220050',woodHi:'#380080',metalDark:'#0c0020',metalHi:'#9060e0',bandDark:'#180040',bandMid:'#380080',bandHi:'#7030c0',gemColor:'#9060ff',gemHi:'#e0c0ff',lockDark:'#08001a',lockMid:'#2a0060',lockHi:'#8040e0',ambientColor:'#6020c0',ambientOpacity:'0.25',dustColor:'#c090ff',extraLid:(t)=>`<text x="60" y="44" font-size="14" fill="${t.bandHi}" fill-opacity="0.6" font-family="serif">ᚦ</text><text x="148" y="32" font-size="14" fill="${t.bandHi}" fill-opacity="0.6" font-family="serif">ᚨ</text><text x="236" y="44" font-size="14" fill="${t.bandHi}" fill-opacity="0.6" font-family="serif">ᛉ</text>`,extraBody:(t)=>`<text x="58" y="68" font-size="14" fill="${t.bandHi}" fill-opacity="0.6" font-family="serif">ᚠ</text><text x="240" y="68" font-size="14" fill="${t.bandHi}" fill-opacity="0.6" font-family="serif">ᚾ</text><text x="148" y="90" font-size="12" fill="${t.bandHi}" fill-opacity="0.4" font-family="serif">ᛏ</text>`,},};
+const LOOT={bronze:{pulls:2,gold:'2d10',table:[{min:1,max:12,type:'Consumable',name:'Potion of Healing',notes:'2d4+2 healing'},{min:13,max:22,type:'Consumable',name:'Spell Scroll (Cantrip)',notes:''},{min:23,max:30,type:'Consumable',name:'Spell Scroll (1st level)',notes:''},{min:31,max:34,type:'Consumable',name:'Antitoxin',notes:''},{min:35,max:37,type:'Consumable',name:'Potion of Water Breathing',notes:'1 hour'},{min:38,max:40,type:'Consumable',name:'Oil of Slipperiness',notes:'1 flask'},{min:41,max:46,type:'Basic Gear/Tools',name:"Healer's Kit",notes:'10 uses'},{min:47,max:51,type:'Basic Gear/Tools',name:"Thieves' Tools or Herbalism Kit",notes:'Choose or random'},{min:52,max:56,type:'Basic Gear/Tools',name:'50 ft Rope + Torch Bundle (5)',notes:''},{min:57,max:60,type:'Basic Gear/Tools',name:'Ball Bearings or Hunting Trap',notes:''},{min:61,max:65,type:'Basic Gear/Tools',name:"Explorer's Pack",notes:''},{min:66,max:69,type:'Basic Gear/Tools',name:'Disguise Kit',notes:''},{min:70,max:72,type:'Basic Gear/Tools',name:"Alchemist's Fire",notes:'1 flask'},{min:73,max:75,type:'Basic Gear/Tools',name:'Minor Magical Trinket',notes:'Flavor; no mechanical benefit'},{min:76,max:89,type:'Trade Goods',name:'Common Gemstone (10 gp)',notes:''},{min:90,max:95,type:'Trade Goods',name:'Silvered Weapon (simple)',notes:'Counts as silvered'},{min:96,max:98,type:'Permanent Magic',name:'+1 Ammunition (10 pieces)',notes:''},{min:99,max:100,type:'Permanent Magic',name:'Moon-Touched Weapon',notes:'Sheds light; counts as magical'}]},silver:{pulls:3,gold:'4d10',table:[{min:1,max:8,type:'Consumable',name:'Potion of Healing (x2)',notes:''},{min:9,max:15,type:'Consumable',name:'Potion of Greater Healing',notes:'4d4+4 healing'},{min:16,max:22,type:'Consumable',name:'Spell Scroll (1st level)',notes:''},{min:23,max:28,type:'Consumable',name:'Spell Scroll (2nd level)',notes:''},{min:29,max:32,type:'Consumable',name:'Potion of Climbing',notes:'1 hour'},{min:33,max:35,type:'Consumable',name:'Potion of Growth',notes:''},{min:36,max:39,type:'Basic Gear/Tools',name:'Sending Stones (pair)',notes:''},{min:40,max:43,type:'Basic Gear/Tools',name:'Immovable Rod',notes:''},{min:44,max:48,type:'Basic Gear/Tools',name:'Gloves of Thievery',notes:''},{min:49,max:54,type:'Basic Gear/Tools',name:'Goggles of Night',notes:''},{min:55,max:60,type:'Basic Gear/Tools',name:'Dust of Dryness',notes:'Utility consumable'},{min:61,max:72,type:'Trade Goods',name:'Uncommon Gemstone (50 gp)',notes:''},{min:73,max:80,type:'Trade Goods',name:'Fine Art Object (100 gp)',notes:''},{min:81,max:85,type:'Permanent Magic',name:'+1 Ammunition (10 pieces)',notes:''},{min:86,max:89,type:'Permanent Magic',name:'Driftglobe',notes:''},{min:90,max:94,type:'Permanent Magic',name:'Bag of Holding',notes:''},{min:95,max:98,type:'Permanent Magic',name:'Cloak of Protection',notes:'+1 AC and saves'},{min:99,max:100,type:'Special',name:'Choice Pull',notes:'Roll twice on Silver; choose one'}]},gold:{pulls:4,gold:'8d10',table:[{min:1,max:8,type:'Consumable',name:'Potion of Greater Healing (x2)',notes:''},{min:9,max:13,type:'Consumable',name:'Potion of Heroism',notes:'Temp HP + Bless'},{min:14,max:19,type:'Consumable',name:'Spell Scroll (2nd level)',notes:''},{min:20,max:24,type:'Consumable',name:'Spell Scroll (3rd level)',notes:''},{min:25,max:27,type:'Consumable',name:'Elixir of Health',notes:'Cures diseases/conditions'},{min:28,max:30,type:'Consumable',name:'Oil of Sharpness',notes:'1 use'},{min:31,max:35,type:'Basic Gear/Tools',name:'Jeweled Chalice (250 gp)',notes:'Also tradeable'},{min:36,max:40,type:'Basic Gear/Tools',name:'Reroll Any One Pull',notes:'This box only'},{min:41,max:45,type:'Basic Gear/Tools',name:'Figurine of Wondrous Power (Silver Raven)',notes:'Utility messenger'},{min:46,max:57,type:'Trade Goods',name:'Rare Gemstone (100 gp)',notes:''},{min:58,max:65,type:'Trade Goods',name:'Trade Cache: art/jewelry (200 gp)',notes:'One object'},{min:66,max:74,type:'Permanent Magic',name:'+1 Weapon',notes:'Any simple/martial'},{min:75,max:82,type:'Permanent Magic',name:'+1 Armor',notes:'Light/medium/heavy'},{min:83,max:86,type:'Permanent Magic',name:'Boots of Elvenkind',notes:''},{min:87,max:89,type:'Permanent Magic',name:'Periapt of Wound Closure',notes:''},{min:90,max:92,type:'Permanent Magic',name:'Ring of Mind Shielding',notes:''},{min:93,max:95,type:'Permanent Magic',name:'Bracers of Archery',notes:''},{min:96,max:100,type:'Special',name:'Upgrade Pull',notes:'Roll once on Platinum table instead'}]},platinum:{pulls:5,gold:'20d10',table:[{min:1,max:8,type:'Consumable',name:'Potion of Superior Healing',notes:'8d4+8 healing'},{min:9,max:15,type:'Consumable',name:'Spell Scroll (4th level)',notes:''},{min:16,max:20,type:'Consumable',name:'Potion of Flying',notes:''},{min:21,max:25,type:'Consumable',name:'Spell Scroll (5th level)',notes:''},{min:26,max:30,type:'Basic Gear/Tools',name:'Royal Signet & Deed',notes:'Land rights worth 1000 gp'},{min:31,max:35,type:'Basic Gear/Tools',name:'Staff of the Python',notes:''},{min:36,max:45,type:'Trade Goods',name:'Very Rare Gemstone (500 gp)',notes:''},{min:46,max:50,type:'Trade Goods',name:'Treasure Parcel: art objects (750 gp)',notes:'1-3 items'},{min:51,max:60,type:'Permanent Magic',name:'+2 Weapon',notes:''},{min:61,max:69,type:'Permanent Magic',name:'+2 Armor',notes:''},{min:70,max:75,type:'Permanent Magic',name:'Winged Boots',notes:''},{min:76,max:80,type:'Permanent Magic',name:'Amulet of Health',notes:'CON becomes 19'},{min:81,max:84,type:'Permanent Magic',name:'Cloak of Displacement',notes:''},{min:85,max:87,type:'Permanent Magic',name:'Ring of Spell Storing',notes:''},{min:88,max:90,type:'Permanent Magic',name:'Helm of Teleportation',notes:''},{min:91,max:94,type:'Special',name:'Double Pull',notes:'2 additional pulls on Platinum'},{min:95,max:97,type:'Special',name:'Upgrade Two Pulls',notes:'Roll twice on Diamond'},{min:98,max:100,type:'Special',name:'Supernatural Charm (rare, 3 uses)',notes:'DM-tailored'}]},diamond:{pulls:6,gold:'50d10',table:[{min:1,max:7,type:'Consumable',name:'Potion of Supreme Healing',notes:'10d4+20 healing'},{min:8,max:13,type:'Consumable',name:'Spell Scroll (5th level)',notes:''},{min:14,max:17,type:'Consumable',name:'Spell Scroll (6th level)',notes:''},{min:18,max:20,type:'Consumable',name:'Consumable Cache',notes:'2 potions OR 2 scrolls'},{min:21,max:23,type:'Basic Gear/Tools',name:'Ioun Stone (rare variant)',notes:'If unsuitable, reroll'},{min:24,max:25,type:'Basic Gear/Tools',name:'Crystal Ball',notes:''},{min:26,max:31,type:'Trade Goods',name:'Diamond (1000 gp)',notes:''},{min:32,max:35,type:'Trade Goods',name:'Hoard of Mixed Gems (3000 gp)',notes:''},{min:36,max:45,type:'Permanent Magic',name:'+3 Weapon',notes:''},{min:46,max:54,type:'Permanent Magic',name:'+3 Armor',notes:''},{min:55,max:60,type:'Permanent Magic',name:'Ring of Regeneration',notes:''},{min:61,max:65,type:'Permanent Magic',name:'Belt of Fire Giant Strength',notes:'STR 25'},{min:66,max:70,type:'Permanent Magic',name:'Staff of Power',notes:''},{min:71,max:74,type:'Permanent Magic',name:'Robe of the Archmagi',notes:'If unsuitable, reroll'},{min:75,max:77,type:'Permanent Magic',name:'Holy Avenger',notes:'If unsuitable, reroll'},{min:78,max:80,type:'Permanent Magic',name:'Rod of Lordly Might',notes:''},{min:81,max:87,type:'Special',name:'Tome of Understanding',notes:'WIS increase'},{min:88,max:92,type:'Special',name:'Epic Boon (minor variant)',notes:'DM tailored'},{min:93,max:96,type:'Special',name:'Upgrade Pull',notes:'Roll once on Onyx'},{min:97,max:100,type:'Special',name:'Choice Pull',notes:'Roll twice on Diamond; choose one'}]},onyx:{pulls:7,gold:'250d10',table:[{min:1,max:5,type:'Consumable',name:'Spell Scroll (6th level)',notes:''},{min:6,max:9,type:'Consumable',name:'Spell Scroll (7th level)',notes:''},{min:10,max:12,type:'Consumable',name:'Mythic Elixir Cache',notes:'Supreme Healing or similar'},{min:13,max:14,type:'Basic Gear/Tools',name:'Sealed Planar Key',notes:'One-use portal attunement'},{min:15,max:15,type:'Basic Gear/Tools',name:'Legendary Map or Contract',notes:'Major plot leverage'},{min:16,max:18,type:'Trade Goods',name:'Black Diamond Cluster (5000 gp)',notes:''},{min:19,max:20,type:'Trade Goods',name:'Vault Writ',notes:'10,000 gp in goods (quest-gated)'},{min:21,max:27,type:'Permanent Magic',name:'Cloak of Invisibility',notes:''},{min:28,max:34,type:'Permanent Magic',name:'Staff of the Magi',notes:''},{min:35,max:41,type:'Permanent Magic',name:'Vorpal Sword',notes:''},{min:42,max:47,type:'Permanent Magic',name:'Ring of Three Wishes',notes:''},{min:48,max:53,type:'Permanent Magic',name:'Armor of Invulnerability',notes:''},{min:54,max:59,type:'Permanent Magic',name:'Luck Blade (1d4-1 wishes)',notes:''},{min:60,max:64,type:'Permanent Magic',name:'Hammer of Thunderbolts',notes:''},{min:65,max:68,type:'Permanent Magic',name:'Sphere of Annihilation (contained)',notes:'High-risk'},{min:69,max:70,type:'Permanent Magic',name:'Talisman of Pure Good/Evil',notes:'Alignment-based'},{min:71,max:76,type:'Special',name:'Deck of Many Things (sealed)',notes:'Optional risk dial'},{min:77,max:82,type:'Special',name:'Custom Campaign Artifact',notes:'Story-significant'},{min:83,max:88,type:'Special',name:'Divine Blessing/Charm',notes:''},{min:89,max:93,type:'Special',name:'Sentient Legendary Weapon',notes:'DM created'},{min:94,max:97,type:'Special',name:'Relic of a Forgotten God',notes:'Campaign tied'},{min:98,max:100,type:'Special',name:'Major Divine Blessing (permanent)',notes:'+2 to one ability, max 22'}]}};
 
-function buildChestSVG(tier,part){const t=TIERS[tier];const isLid=part==='lid';const bx=16,bw=288,by=isLid?14:4,bh=isLid?62:130;const band1y=isLid?10:0,band2y=isLid?68:126,bandH=14;const rivetXs=[28,52,268,292];const rivetY1=isLid?17:7,rivetY2=isLid?75:133;const lockX=133,lockY=isLid?58:0,lockW=54,lockH=isLid?24:20;const extra=isLid?t.extraLid(t):t.extraBody(t);const amb=!isLid?`<ellipse cx="160" cy="110" rx="140" ry="50" fill="${t.ambientColor}" fill-opacity="${t.ambientOpacity}"/>`:'';const mist=!isLid?`<ellipse cx="65" cy="130" rx="45" ry="8" fill="${t.ambientColor}" fill-opacity="0.07"/><ellipse cx="255" cy="136" rx="38" ry="7" fill="${t.ambientColor}" fill-opacity="0.06"/>`:'';const dust=isLid?`<circle cx="70" cy="38" r="1.5" fill="${t.dustColor}" fill-opacity="0.4"/><circle cx="240" cy="28" r="1" fill="${t.dustColor}" fill-opacity="0.35"/>`:'';const defs=`<defs><linearGradient id="w-${tier}-${part}" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="${t.woodLight}"/><stop offset="45%" stop-color="${t.woodMid}"/><stop offset="100%" stop-color="${t.woodDark}"/></linearGradient><linearGradient id="bd-${tier}-${part}" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="${t.bandHi}"/><stop offset="50%" stop-color="${t.bandMid}"/><stop offset="100%" stop-color="${t.bandDark}"/></linearGradient><linearGradient id="gm-${tier}-${part}" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="${t.gemHi}"/><stop offset="60%" stop-color="${t.gemColor}"/><stop offset="100%" stop-color="${t.metalDark}"/></linearGradient><linearGradient id="lk-${tier}-${part}" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="${t.lockHi}"/><stop offset="100%" stop-color="${t.lockDark}"/></linearGradient><linearGradient id="sl-${tier}-${part}" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#000" stop-opacity="0.45"/><stop offset="100%" stop-color="#000" stop-opacity="0"/></linearGradient><linearGradient id="sr-${tier}-${part}" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#000" stop-opacity="0"/><stop offset="100%" stop-color="#000" stop-opacity="0.4"/></linearGradient><linearGradient id="sh-${tier}-${part}" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="${t.woodHi}" stop-opacity="0.35"/><stop offset="100%" stop-color="${t.woodHi}" stop-opacity="0"/></linearGradient>${isLid?`<linearGradient id="sm-${tier}" x1="0.5" y1="0" x2="0.5" y2="1"><stop offset="0%" stop-color="${t.gemColor}" stop-opacity="0.5"/><stop offset="100%" stop-color="${t.gemColor}" stop-opacity="0"/></linearGradient>`:''}</defs>`;
-const body=`<rect x="${bx}" y="${by}" width="${bw}" height="${bh}" rx="6" fill="url(#w-${tier}-${part})"/>`;const shine=`<rect x="${bx}" y="${by}" width="${bw}" height="${Math.round(bh*0.35)}" rx="5" fill="url(#sh-${tier}-${part})"/>`;const sL=`<rect x="${bx}" y="${by}" width="18" height="${bh}" rx="3" fill="url(#sl-${tier}-${part})"/>`;const sR=`<rect x="${bx+bw-18}" y="${by}" width="18" height="${bh}" rx="3" fill="url(#sr-${tier}-${part})"/>`;const b1=`<rect x="${bx-2}" y="${band1y}" width="${bw+4}" height="${bandH}" rx="3" fill="url(#bd-${tier}-${part})"/><rect x="${bx-2}" y="${band1y}" width="${bw+4}" height="3" rx="2" fill="${t.metalHi}" fill-opacity="0.4"/><rect x="${bx-2}" y="${band1y+bandH-2}" width="${bw+4}" height="2" fill="${t.bandDark}" fill-opacity="0.5"/>`;const b2=`<rect x="${bx-2}" y="${band2y}" width="${bw+4}" height="${bandH}" rx="3" fill="url(#bd-${tier}-${part})"/><rect x="${bx-2}" y="${band2y}" width="${bw+4}" height="3" rx="2" fill="${t.metalHi}" fill-opacity="0.35"/><rect x="${bx-2}" y="${band2y+bandH-2}" width="${bw+4}" height="2" fill="${t.bandDark}" fill-opacity="0.5"/>`;const rivets=rivetXs.map(rx=>[rivetY1,rivetY2].map(ry=>`<circle cx="${rx}" cy="${ry+7}" r="8" fill="${t.metalDark}"/><circle cx="${rx}" cy="${ry+7}" r="6" fill="url(#gm-${tier}-${part})"/><circle cx="${rx-2}" cy="${ry+5}" r="2.5" fill="${t.gemHi}" fill-opacity="0.7"/>`).join('')).join('');const lockEye=tier==='onyx'?`<ellipse cx="${lockX+lockW/2}" cy="${lockY+(isLid?12:10)}" rx="13" ry="7" fill="${t.lockDark}"/><ellipse cx="${lockX+lockW/2}" cy="${lockY+(isLid?12:10)}" rx="9" ry="5" fill="${t.lockMid}"/><ellipse cx="${lockX+lockW/2}" cy="${lockY+(isLid?12:10)}" rx="5" ry="5" fill="${t.lockDark}"/><ellipse cx="${lockX+lockW/2}" cy="${lockY+(isLid?12:10)}" rx="3" ry="3" fill="${t.lockHi}" fill-opacity="0.8"/><circle cx="${lockX+lockW/2-2}" cy="${lockY+(isLid?10:8)}" r="1.5" fill="#fff" fill-opacity="0.7"/>`:`<circle cx="${lockX+lockW/2}" cy="${lockY+(isLid?12:10)}" r="6" fill="${t.lockDark}"/><circle cx="${lockX+lockW/2}" cy="${lockY+(isLid?12:10)}" r="4" fill="${t.lockMid}"/><circle cx="${lockX+lockW/2}" cy="${lockY+(isLid?12:10)}" r="2" fill="${t.lockHi}" fill-opacity="0.8"/><rect x="${lockX+lockW/2-2}" y="${lockY+(isLid?15:13)}" width="4" height="${isLid?5:4}" rx="1" fill="${t.lockDark}"/>`;const lock=`<rect x="${lockX}" y="${lockY}" width="${lockW}" height="${lockH}" rx="5" fill="url(#lk-${tier}-${part})"/><rect x="${lockX}" y="${lockY}" width="${lockW}" height="4" rx="2" fill="${t.lockHi}" fill-opacity="0.45"/><rect x="${lockX}" y="${lockY}" width="3" height="${lockH}" fill="${t.lockHi}" fill-opacity="0.2"/>${lockEye}`;const seam=isLid?`<rect x="${bx-2}" y="${by+bh-8}" width="${bw+4}" height="12" fill="url(#sm-${tier})" rx="2"/>`:'';return `${defs}${amb}${mist}${body}${shine}${sL}${sR}${extra}${b1}${b2}${rivets}${lock}${seam}${dust}`;}
-
-const LOOT_TABLES={bronze:{pulls:2,gold:'2d10',table:[{min:1,max:12,type:'Consumable',name:'Potion of Healing',notes:'2d4+2 healing'},{min:13,max:22,type:'Consumable',name:'Spell Scroll (Cantrip)',notes:''},{min:23,max:30,type:'Consumable',name:'Spell Scroll (1st level)',notes:''},{min:31,max:34,type:'Consumable',name:'Antitoxin',notes:''},{min:35,max:37,type:'Consumable',name:'Potion of Water Breathing',notes:'1 hour'},{min:38,max:40,type:'Consumable',name:'Oil of Slipperiness',notes:'1 flask'},{min:41,max:46,type:'Basic Gear/Tools',name:"Healer's Kit",notes:'10 uses'},{min:47,max:51,type:'Basic Gear/Tools',name:"Thieves' Tools or Herbalism Kit",notes:'Choose or random'},{min:52,max:56,type:'Basic Gear/Tools',name:'50 ft Rope + Torch Bundle (5)',notes:''},{min:57,max:60,type:'Basic Gear/Tools',name:'Ball Bearings or Hunting Trap',notes:''},{min:61,max:65,type:'Basic Gear/Tools',name:"Explorer's Pack",notes:''},{min:66,max:69,type:'Basic Gear/Tools',name:'Disguise Kit',notes:''},{min:70,max:72,type:'Basic Gear/Tools',name:"Alchemist's Fire",notes:'1 flask'},{min:73,max:75,type:'Basic Gear/Tools',name:'Minor Magical Trinket',notes:'Flavor; no mechanical benefit'},{min:76,max:89,type:'Trade Goods',name:'Common Gemstone (10 gp)',notes:''},{min:90,max:95,type:'Trade Goods',name:'Silvered Weapon (simple)',notes:'Counts as silvered'},{min:96,max:98,type:'Permanent Magic',name:'+1 Ammunition (10 pieces)',notes:''},{min:99,max:100,type:'Permanent Magic',name:'Moon-Touched Weapon',notes:'Sheds light; counts as magical'}]},silver:{pulls:3,gold:'4d10',table:[{min:1,max:8,type:'Consumable',name:'Potion of Healing (×2)',notes:''},{min:9,max:15,type:'Consumable',name:'Potion of Greater Healing',notes:'4d4+4 healing'},{min:16,max:22,type:'Consumable',name:'Spell Scroll (1st level)',notes:''},{min:23,max:28,type:'Consumable',name:'Spell Scroll (2nd level)',notes:''},{min:29,max:32,type:'Consumable',name:'Potion of Climbing',notes:'1 hour'},{min:33,max:35,type:'Consumable',name:'Potion of Growth',notes:''},{min:36,max:39,type:'Basic Gear/Tools',name:'Sending Stones (pair)',notes:''},{min:40,max:43,type:'Basic Gear/Tools',name:'Immovable Rod',notes:''},{min:44,max:48,type:'Basic Gear/Tools',name:'Gloves of Thievery',notes:''},{min:49,max:54,type:'Basic Gear/Tools',name:'Goggles of Night',notes:''},{min:55,max:60,type:'Basic Gear/Tools',name:'Dust of Dryness',notes:'Utility consumable'},{min:61,max:72,type:'Trade Goods',name:'Uncommon Gemstone (50 gp)',notes:''},{min:73,max:80,type:'Trade Goods',name:'Fine Art Object (100 gp)',notes:''},{min:81,max:85,type:'Permanent Magic',name:'+1 Ammunition (10 pieces)',notes:''},{min:86,max:89,type:'Permanent Magic',name:'Driftglobe',notes:''},{min:90,max:94,type:'Permanent Magic',name:'Bag of Holding',notes:''},{min:95,max:98,type:'Permanent Magic',name:'Cloak of Protection',notes:'+1 AC and saves'},{min:99,max:100,type:'Special',name:'Choice Pull',notes:'Roll twice on Silver table; choose one'}]},gold:{pulls:4,gold:'8d10',table:[{min:1,max:8,type:'Consumable',name:'Potion of Greater Healing (×2)',notes:''},{min:9,max:13,type:'Consumable',name:'Potion of Heroism',notes:'Temp HP + Bless'},{min:14,max:19,type:'Consumable',name:'Spell Scroll (2nd level)',notes:''},{min:20,max:24,type:'Consumable',name:'Spell Scroll (3rd level)',notes:''},{min:25,max:27,type:'Consumable',name:'Elixir of Health',notes:'Cures diseases/conditions'},{min:28,max:30,type:'Consumable',name:'Oil of Sharpness',notes:'1 use'},{min:31,max:35,type:'Basic Gear/Tools',name:'Jeweled Chalice (250 gp)',notes:'Also tradeable'},{min:36,max:40,type:'Basic Gear/Tools',name:'Reroll Any One Pull',notes:'This box only'},{min:41,max:45,type:'Basic Gear/Tools',name:'Figurine of Wondrous Power (Silver Raven)',notes:'Utility messenger'},{min:46,max:57,type:'Trade Goods',name:'Rare Gemstone (100 gp)',notes:''},{min:58,max:65,type:'Trade Goods',name:'Trade Cache: art/jewelry (200 gp)',notes:'One object'},{min:66,max:74,type:'Permanent Magic',name:'+1 Weapon',notes:'Any simple/martial'},{min:75,max:82,type:'Permanent Magic',name:'+1 Armor',notes:'Light/medium/heavy'},{min:83,max:86,type:'Permanent Magic',name:'Boots of Elvenkind',notes:''},{min:87,max:89,type:'Permanent Magic',name:'Periapt of Wound Closure',notes:''},{min:90,max:92,type:'Permanent Magic',name:'Ring of Mind Shielding',notes:''},{min:93,max:95,type:'Permanent Magic',name:'Bracers of Archery',notes:''},{min:96,max:100,type:'Special',name:'Upgrade Pull',notes:'Roll once on Platinum table instead'}]},platinum:{pulls:5,gold:'20d10',table:[{min:1,max:8,type:'Consumable',name:'Potion of Superior Healing',notes:'8d4+8 healing'},{min:9,max:15,type:'Consumable',name:'Spell Scroll (4th level)',notes:''},{min:16,max:20,type:'Consumable',name:'Potion of Flying',notes:''},{min:21,max:25,type:'Consumable',name:'Spell Scroll (5th level)',notes:''},{min:26,max:30,type:'Basic Gear/Tools',name:'Royal Signet & Deed',notes:'Land rights worth 1000 gp (plot hook)'},{min:31,max:35,type:'Basic Gear/Tools',name:'Staff of the Python',notes:''},{min:36,max:45,type:'Trade Goods',name:'Very Rare Gemstone (500 gp)',notes:''},{min:46,max:50,type:'Trade Goods',name:'Treasure Parcel: art objects (750 gp)',notes:'1–3 items'},{min:51,max:60,type:'Permanent Magic',name:'+2 Weapon',notes:''},{min:61,max:69,type:'Permanent Magic',name:'+2 Armor',notes:''},{min:70,max:75,type:'Permanent Magic',name:'Winged Boots',notes:''},{min:76,max:80,type:'Permanent Magic',name:'Amulet of Health',notes:'CON becomes 19'},{min:81,max:84,type:'Permanent Magic',name:'Cloak of Displacement',notes:''},{min:85,max:87,type:'Permanent Magic',name:'Ring of Spell Storing',notes:''},{min:88,max:90,type:'Permanent Magic',name:'Helm of Teleportation',notes:''},{min:91,max:94,type:'Special',name:'Double Pull',notes:'Gain 2 additional pulls on Platinum table'},{min:95,max:97,type:'Special',name:'Upgrade Two Pulls',notes:'Roll twice on Diamond table'},{min:98,max:100,type:'Special',name:'Supernatural Charm (rare, 3 uses)',notes:'DM-tailored'}]},diamond:{pulls:6,gold:'50d10',table:[{min:1,max:7,type:'Consumable',name:'Potion of Supreme Healing',notes:'10d4+20 healing'},{min:8,max:13,type:'Consumable',name:'Spell Scroll (5th level)',notes:''},{min:14,max:17,type:'Consumable',name:'Spell Scroll (6th level)',notes:''},{min:18,max:20,type:'Consumable',name:'Consumable Cache',notes:'Choose: 2 potions OR 2 scrolls (≤5th)'},{min:21,max:23,type:'Basic Gear/Tools',name:'Ioun Stone (rare variant)',notes:'If unsuitable, reroll'},{min:24,max:25,type:'Basic Gear/Tools',name:'Crystal Ball',notes:''},{min:26,max:31,type:'Trade Goods',name:'Diamond (1000 gp)',notes:''},{min:32,max:35,type:'Trade Goods',name:'Hoard of Mixed Gems (3000 gp)',notes:''},{min:36,max:45,type:'Permanent Magic',name:'+3 Weapon',notes:''},{min:46,max:54,type:'Permanent Magic',name:'+3 Armor',notes:''},{min:55,max:60,type:'Permanent Magic',name:'Ring of Regeneration',notes:''},{min:61,max:65,type:'Permanent Magic',name:'Belt of Fire Giant Strength',notes:'STR 25'},{min:66,max:70,type:'Permanent Magic',name:'Staff of Power',notes:''},{min:71,max:74,type:'Permanent Magic',name:'Robe of the Archmagi',notes:'If unusable, reroll'},{min:75,max:77,type:'Permanent Magic',name:'Holy Avenger',notes:'If unusable, reroll'},{min:78,max:80,type:'Permanent Magic',name:'Rod of Lordly Might',notes:''},{min:81,max:87,type:'Special',name:'Tome of Understanding',notes:'WIS increase'},{min:88,max:92,type:'Special',name:'Epic Boon (minor variant)',notes:'DM tailored'},{min:93,max:96,type:'Special',name:'Upgrade Pull',notes:'Roll once on Onyx table instead'},{min:97,max:100,type:'Special',name:'Choice Pull',notes:'Roll twice on Diamond; choose one'}]},onyx:{pulls:7,gold:'250d10',table:[{min:1,max:5,type:'Consumable',name:'Spell Scroll (6th level)',notes:''},{min:6,max:9,type:'Consumable',name:'Spell Scroll (7th level)',notes:''},{min:10,max:12,type:'Consumable',name:'Mythic Elixir Cache',notes:'Choose: Supreme Healing or similar'},{min:13,max:14,type:'Basic Gear/Tools',name:'Sealed Planar Key',notes:'One-use portal attunement'},{min:15,max:15,type:'Basic Gear/Tools',name:'Legendary Map or Contract',notes:'Major plot leverage'},{min:16,max:18,type:'Trade Goods',name:'Black Diamond Cluster (5000 gp)',notes:''},{min:19,max:20,type:'Trade Goods',name:'Vault Writ',notes:'Claim to 10,000 gp in goods (quest-gated)'},{min:21,max:27,type:'Permanent Magic',name:'Cloak of Invisibility',notes:''},{min:28,max:34,type:'Permanent Magic',name:'Staff of the Magi',notes:''},{min:35,max:41,type:'Permanent Magic',name:'Vorpal Sword',notes:''},{min:42,max:47,type:'Permanent Magic',name:'Ring of Three Wishes',notes:''},{min:48,max:53,type:'Permanent Magic',name:'Armor of Invulnerability',notes:''},{min:54,max:59,type:'Permanent Magic',name:'Luck Blade (1d4-1 wishes)',notes:''},{min:60,max:64,type:'Permanent Magic',name:'Hammer of Thunderbolts',notes:''},{min:65,max:68,type:'Permanent Magic',name:'Sphere of Annihilation (contained)',notes:'High-risk'},{min:69,max:70,type:'Permanent Magic',name:'Talisman of Pure Good/Evil',notes:'Alignment-based'},{min:71,max:76,type:'Special',name:'Deck of Many Things (sealed variant)',notes:'Optional risk dial'},{min:77,max:82,type:'Special',name:'Custom Campaign Artifact',notes:'Story-significant'},{min:83,max:88,type:'Special',name:'Divine Blessing/Charm',notes:''},{min:89,max:93,type:'Special',name:'Sentient Legendary Weapon (DM created)',notes:''},{min:94,max:97,type:'Special',name:'Relic of a Forgotten God',notes:'Campaign tied'},{min:98,max:100,type:'Special',name:'Major Divine Blessing (permanent)',notes:'+2 to one ability, max 22'}]}};
-
-let currentTier='bronze',opened=false,shaking=false;
 function rollD100(){return Math.floor(Math.random()*100)+1;}
 function rollGold(f){const m=f.match(/(\d+)d(\d+)/);if(!m)return 0;let t=0;for(let i=0;i<+m[1];i++)t+=Math.floor(Math.random()*+m[2])+1;return t;}
-function pickItems(key){const d=LOOT_TABLES[key];return Array.from({length:d.pulls},()=>{const r=rollD100();const entry={...(d.table.find(e=>r>=e.min&&r<=e.max)||d.table[d.table.length-1])};const res=resolveScrollName(entry.name);if(res){entry.name=res;entry.notes='';}return entry;});}
-function rarityClass(t){if(t.startsWith('Special'))return 'r-Special';if(t.startsWith('Permanent'))return 'r-Permanent';if(t.startsWith('Trade'))return 'r-Trade';if(t.startsWith('Basic'))return 'r-Basic';return 'r-Consumable';}
-function rarityLabel(t){if(t.startsWith('Special'))return 'Special';if(t.startsWith('Permanent'))return 'Permanent Magic';if(t.startsWith('Trade'))return 'Trade Goods';if(t.startsWith('Basic'))return 'Gear/Tools';return 'Consumable';}
-function typeIcon(t){if(t.startsWith('Special'))return '✦';if(t.startsWith('Permanent'))return '⚔';if(t.startsWith('Trade'))return '💰';if(t.startsWith('Basic'))return '🎒';return '🧪';}
-function redrawChest(tier){document.getElementById('chest-svg-lid').innerHTML=buildChestSVG(tier,'lid');document.getElementById('chest-svg-body').innerHTML=buildChestSVG(tier,'body');document.getElementById('burst').style.background=`radial-gradient(circle,${TIERS[tier].glow} 0%,transparent 70%)`;}
-function buildTierButtons(){const sel=document.getElementById('tier-selector');Object.entries(TIERS).forEach(([key,t])=>{const b=document.createElement('button');b.className='tier-btn';b.textContent=t.label.toUpperCase();b.dataset.tier=key;b.style.color=key===currentTier?t.btnText:t.btnColor;b.style.borderColor=t.btnBorder;b.style.background=key===currentTier?t.btnColor:'transparent';b.onclick=()=>{if(opened||shaking)return;selectTier(key);};sel.appendChild(b);});}
-function selectTier(key){currentTier=key;document.querySelectorAll('.tier-btn').forEach(b=>{const t=TIERS[b.dataset.tier];b.style.background=b.dataset.tier===key?t.btnColor:'transparent';b.style.color=b.dataset.tier===key?t.btnText:t.btnColor;});redrawChest(key);styleOpenBtn(key);}
-function styleOpenBtn(key){const t=TIERS[key];const btn=document.getElementById('open-btn');btn.style.color=t.btnColor;btn.style.borderColor=t.btnBorder;}
-function spawnParticles(key){const t=TIERS[key];const wrap=document.getElementById('chest-wrap');for(let i=0;i<64;i++){const p=document.createElement('div');const size=3+Math.random()*12;const angle=Math.random()*Math.PI*2;const dist=i<32?80+Math.random()*100:140+Math.random()*140;const tx=Math.cos(angle)*dist,ty=Math.sin(angle)*dist-60;const color=t.particles[Math.floor(Math.random()*t.particles.length)];const delay=i<32?Math.random()*0.15:0.05+Math.random()*0.25;const dur=i<32?0.4+Math.random()*0.5:0.6+Math.random()*0.7;p.style.cssText=`position:absolute;border-radius:50%;pointer-events:none;width:${size}px;height:${size}px;background:${color};left:50%;top:42%;--tx:${tx}px;--ty:${ty}px;animation:fly ${dur}s ease-out forwards;animation-delay:${delay}s;`;wrap.appendChild(p);p.addEventListener('animationend',()=>p.remove());}}
-function triggerOpen(){if(opened||shaking)return;shaking=true;const wrap=document.getElementById('chest-wrap');wrap.classList.add('chest-shaking');wrap.addEventListener('animationend',function h(){wrap.removeEventListener('animationend',h);wrap.classList.remove('chest-shaking');shaking=false;openChest();},{once:true});}
-function openChest(){opened=true;const t=TIERS[currentTier];document.getElementById('open-btn').style.display='none';document.getElementById('chest-wrap').style.cursor='default';document.getElementById('chest-wrap').classList.add('chest-open');spawnParticles(currentTier);const items=pickItems(currentTier);const goldAmt=rollGold(LOOT_TABLES[currentTier].gold);const list=document.getElementById('items-list');list.innerHTML='';items.forEach(item=>{const li=document.createElement('li');const notes=item.notes?`<div class="item-notes">${item.notes}</div>`:'';li.innerHTML=`<div class="item-left"><div class="item-name">${typeIcon(item.type)} ${item.name}</div>${notes}</div><div style="display:flex;align-items:center"><span class="item-rarity ${rarityClass(item.type)}">${rarityLabel(item.type)}</span></div>`;list.appendChild(li);});const rt=document.getElementById('result-title');rt.textContent=`✦ ${t.label.toUpperCase()} CHEST REWARDS ✦`;rt.style.color=t.resultColor;document.getElementById('gold-amount-text').textContent=`${goldAmt.toLocaleString()} gp`;setTimeout(()=>{rt.classList.add('show');document.getElementById('gold-row').classList.add('show');list.querySelectorAll('li').forEach((li,i)=>setTimeout(()=>li.classList.add('show'),(i+1)*150));setTimeout(()=>document.getElementById('try-again-btn').classList.add('show'),items.length*150+450);},800);}
-function resetChest(){opened=false;shaking=false;document.getElementById('chest-wrap').classList.remove('chest-open','chest-shaking');document.getElementById('items-list').innerHTML='';document.getElementById('result-title').classList.remove('show');document.getElementById('gold-row').classList.remove('show');const tryBtn=document.getElementById('try-again-btn');tryBtn.classList.remove('show');setTimeout(()=>tryBtn.style.display='',10);const btn=document.getElementById('open-btn');btn.style.display='';btn.disabled=false;document.getElementById('chest-wrap').style.cursor='pointer';redrawChest(currentTier);}
+function pickItems(key){const d=LOOT[key];return Array.from({length:d.pulls},()=>{const r=rollD100();const e={...(d.table.find(x=>r>=x.min&&r<=x.max)||d.table[d.table.length-1])};const rs=resolveScroll(e.name);if(rs){e.name=rs;e.notes='';}return e;});}
+function rClass(t){if(t.startsWith('Special'))return 'r-Special';if(t.startsWith('Permanent'))return 'r-Permanent';if(t.startsWith('Trade'))return 'r-Trade';if(t.startsWith('Basic'))return 'r-Basic';if(t==='Custom')return 'r-Custom';return 'r-Consumable';}
+function rLabel(t){if(t.startsWith('Special'))return 'Special';if(t.startsWith('Permanent'))return 'Permanent Magic';if(t.startsWith('Trade'))return 'Trade Goods';if(t.startsWith('Basic'))return 'Gear/Tools';if(t==='Custom')return 'Special';return 'Consumable';}
+function tIcon(t){if(t.startsWith('Special'))return '✦';if(t.startsWith('Permanent'))return '⚔';if(t.startsWith('Trade'))return '💰';if(t.startsWith('Basic'))return '🎒';if(t==='Custom')return '✦';return '🧪';}
 
-document.getElementById('code-input').addEventListener('keydown',e=>{if(e.key==='Enter')submitCode();});
-buildTierButtons();redrawChest('bronze');styleOpenBtn('bronze');
+// ── THREE.JS ──────────────────────────────────────────────────────────────────
+const canvas=document.getElementById('c');
+const renderer=new THREE.WebGLRenderer({canvas,antialias:true});
+renderer.setSize(420,300);renderer.shadowMap.enabled=true;renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,2));
+const scene=new THREE.Scene();
+const camera=new THREE.PerspectiveCamera(44,420/300,0.1,100);
+camera.position.set(0,2.0,6.0);camera.lookAt(0,0.1,0);
+const keyL=new THREE.DirectionalLight(0xffd0a0,2.2);keyL.position.set(2.5,5,3.5);keyL.castShadow=true;keyL.shadow.mapSize.set(1024,1024);scene.add(keyL);
+const fillL=new THREE.DirectionalLight(0x3a1800,0.5);fillL.position.set(-3,2,1);scene.add(fillL);
+const rimL=new THREE.DirectionalLight(0xc87030,0.7);rimL.position.set(3,1,-2);scene.add(rimL);
+const ambL=new THREE.AmbientLight(0x201008,1.2);scene.add(ambL);
+const upL=new THREE.DirectionalLight(0x000000,0);upL.position.set(0,-4,1);scene.add(upL);
+const floorM=new THREE.Mesh(new THREE.PlaneGeometry(14,14),new THREE.MeshStandardMaterial({color:0x06040e,roughness:1,metalness:0}));
+floorM.rotation.x=-Math.PI/2;floorM.position.y=-1.52;floorM.receiveShadow=true;scene.add(floorM);
+
+const TD={
+  bronze:{label:'BRONZE',labelColor:'#d08040',btnColor:'#cd7f32',btnBorder:'#8b5a1a',btnText:'#fff',bg:0x120a04,woodC:0x4a2e0a,woodR:0.97,woodDkC:0x1e0e02,bandC:0x7a4a12,bandR:0.72,bandMt:0.55,bandHiC:0xb06828,bandHiR:0.55,bandHiMt:0.65,rivetC:0x8a5014,rivetR:0.68,rivetMt:0.58,lockC:0x6a3a0a,lockR:0.78,lockMt:0.5,intC:0x180a02,glowC:0xff8820,glowMax:1.8,parts:[0xcd7f32,0xe0a060,0xf0c080,0xffd080,0x8b5a1a],kC:0xffd0a0,kI:2.2,fC:0x3a1800,fI:0.5,rC:0xc87030,rI:0.7,aC:0x201008,aI:1.2,upI:0,midBand:false,archH:0.05,filigree:false},
+  silver:{label:'SILVER',labelColor:'#90b0c8',btnColor:'#b0b8c1',btnBorder:'#7a8a96',btnText:'#1a2030',bg:0x080e14,woodC:0x243040,woodR:0.82,woodDkC:0x101820,bandC:0x607888,bandR:0.32,bandMt:0.88,bandHiC:0xa0bcc8,bandHiR:0.22,bandHiMt:0.92,rivetC:0x708090,rivetR:0.28,rivetMt:0.9,lockC:0x5878a0,lockR:0.28,lockMt:0.92,intC:0x14202c,glowC:0x80c0e8,glowMax:2.2,parts:[0xa0b8cc,0xc0d8ec,0xe0f0ff,0xffffff,0x6080a0],kC:0xd0e0f0,kI:2.0,fC:0x102030,fI:0.4,rC:0x8090a8,rI:0.6,aC:0x101820,aI:1.0,upI:0,midBand:false,archH:0.07,filigree:true},
+  gold:{label:'GOLD',labelColor:'#f0c030',btnColor:'#e8b830',btnBorder:'#c8960a',btnText:'#100800',bg:0x0c0800,woodC:0x5c3e0a,woodR:0.8,woodDkC:0x281800,bandC:0xc89010,bandR:0.18,bandMt:0.96,bandHiC:0xf0c030,bandHiR:0.1,bandHiMt:1.0,rivetC:0xe0a820,rivetR:0.12,rivetMt:1.0,lockC:0xd49010,lockR:0.1,lockMt:1.0,intC:0x3a2004,glowC:0xffd060,glowMax:3.2,parts:[0xf5c842,0xffe080,0xffd700,0xff8c00,0xffffff],kC:0xffe0a0,kI:2.2,fC:0x200e00,fI:0.4,rC:0xf0b030,rI:0.8,aC:0x180e02,aI:1.0,upI:0,midBand:true,archH:0.1,filigree:false},
+  platinum:{label:'PLATINUM',labelColor:'#a8d0ec',btnColor:'#c0d8f0',btnBorder:'#7090b0',btnText:'#081428',bg:0x04080e,woodC:0x1e2e42,woodR:0.55,woodDkC:0x0c1420,bandC:0x80a8c8,bandR:0.08,bandMt:0.99,bandHiC:0xc0e0f8,bandHiR:0.04,bandHiMt:1.0,rivetC:0xa0c0e0,rivetR:0.06,rivetMt:1.0,lockC:0x88b0d0,lockR:0.06,lockMt:1.0,intC:0x142038,glowC:0xa0d8f8,glowMax:2.8,parts:[0xc0d8f0,0xe0f0ff,0xffffff,0x80b0d8,0x4080b0],kC:0xd0e8f8,kI:2.2,fC:0x081428,fI:0.4,rC:0x90c0e0,rI:0.8,aC:0x0c1828,aI:1.0,upI:0,midBand:true,archH:0.12,filigree:true},
+  diamond:{label:'DIAMOND',labelColor:'#50d8ff',btnColor:'#70e0ff',btnBorder:'#2090c0',btnText:'#001828',bg:0x02060c,woodC:0x0a2030,woodR:0.42,woodDkC:0x020c18,bandC:0x2890c8,bandR:0.05,bandMt:1.0,bandHiC:0x70d8ff,bandHiR:0.02,bandHiMt:1.0,rivetC:0x48c0f0,rivetR:0.03,rivetMt:1.0,lockC:0x38b0e8,lockR:0.03,lockMt:1.0,intC:0x081828,glowC:0x60e8ff,glowMax:4.5,parts:[0x70e0ff,0xc0f4ff,0xffffff,0x20a0d0,0xffe080],kC:0x80e8ff,kI:2.4,fC:0x081828,fI:0.5,rC:0x40b8e8,rI:1.0,aC:0x081020,aI:1.0,upI:0,midBand:true,archH:0.16,filigree:true},
+  onyx:{label:'ONYX',labelColor:'#c090ff',btnColor:'#a060ff',btnBorder:'#5010c0',btnText:'#fff',bg:0x040008,woodC:0x100030,woodR:0.28,woodDkC:0x060012,bandC:0x5818b8,bandR:0.04,bandMt:1.0,bandHiC:0xaa50ff,bandHiR:0.02,bandHiMt:1.0,rivetC:0x8030e0,rivetR:0.02,rivetMt:1.0,lockC:0x7028d0,lockR:0.02,lockMt:1.0,intC:0x080018,glowC:0xc060ff,glowMax:6.0,parts:[0xc090ff,0x7040e0,0xff60d0,0x00e8ff,0xffffff],kC:0xb060ff,kI:2.5,fC:0x180040,fI:0.6,rC:0xff40d0,rI:0.8,aC:0x100028,aI:1.2,upI:0.7,midBand:true,archH:0.22,filigree:false},
+};
+
+function mkMat(c,r,m,ec=0,ei=0){const mat=new THREE.MeshStandardMaterial({color:c,roughness:r,metalness:m});if(ec){mat.emissive=new THREE.Color(ec);mat.emissiveIntensity=ei;}return mat;}
+
+let masterGroup=null,lidPivot=null,glowPt=null,particleMeshes=[];
+let lidAngle=0,targetLid=0,isOpen=false,opening=false,idleT=0;
+let activeTier='bronze',uiLocked=false;
+const MAX_LID=-Math.PI*0.88;
+
+function clearScene(){
+  if(masterGroup){masterGroup.traverse(o=>{if(o.geometry)o.geometry.dispose();if(o.material){if(Array.isArray(o.material))o.material.forEach(m=>m.dispose());else o.material.dispose();}});scene.remove(masterGroup);masterGroup=null;}
+  particleMeshes.forEach(p=>{if(p.geometry)p.geometry.dispose();if(p.material)p.material.dispose();scene.remove(p);});
+  particleMeshes=[];lidPivot=null;glowPt=null;lidAngle=0;targetLid=0;isOpen=false;opening=false;idleT=0;
+}
+
+function buildChest(key){
+  clearScene();activeTier=key;const t=TD[key];
+  scene.background=new THREE.Color(t.bg);floorM.material.color.set(t.bg);
+  keyL.color.set(t.kC);keyL.intensity=t.kI;fillL.color.set(t.fC);fillL.intensity=t.fI;
+  rimL.color.set(t.rC);rimL.intensity=t.rI;ambL.color.set(t.aC);ambL.intensity=t.aI;
+  upL.color.set(key==='onyx'?0x5010b0:0x000000);upL.intensity=t.upI;
+  const wM=mkMat(t.woodC,t.woodR,0),wdM=mkMat(t.woodDkC,t.woodR+0.05,0),bM=mkMat(t.bandC,t.bandR,t.bandMt);
+  const bHM=mkMat(t.bandHiC,t.bandHiR,t.bandHiMt,key==='onyx'?0x7020d0:key==='diamond'?0x2080c0:0,key==='onyx'?0.5:key==='diamond'?0.3:0);
+  const rvM=mkMat(t.rivetC,t.rivetR,t.rivetMt,key==='onyx'?0x8030e0:0,key==='onyx'?0.4:0);
+  const lkM=mkMat(t.lockC,t.lockR,t.lockMt,key==='onyx'?0x9040e0:key==='diamond'?0x3090d0:0,key==='onyx'?0.7:key==='diamond'?0.5:0);
+  const inM=new THREE.MeshStandardMaterial({color:t.intC,roughness:0.95,metalness:0,side:THREE.BackSide});
+  const mg=new THREE.Group();
+  const bodyG=new THREE.Group();bodyG.position.y=-0.76;
+  const bodyMesh=new THREE.Mesh(new THREE.BoxGeometry(2.6,1.52,1.72),wM);bodyMesh.castShadow=true;bodyMesh.receiveShadow=true;bodyG.add(bodyMesh);
+  const intMesh=new THREE.Mesh(new THREE.BoxGeometry(2.3,1.25,1.45),inM);intMesh.position.y=0.14;bodyG.add(intMesh);
+  const plankN=key==='bronze'?6:4;
+  for(let i=0;i<plankN;i++){const py=-0.62+i*(1.24/(plankN-1));const pl=new THREE.Mesh(new THREE.BoxGeometry(2.63,0.022,1.74),wdM);pl.position.y=py;bodyG.add(pl);}
+  [-0.8,0.8].forEach(y=>{const b=new THREE.Mesh(new THREE.BoxGeometry(2.74,0.145,1.82),bM);b.position.y=y;b.castShadow=true;bodyG.add(b);const bh=new THREE.Mesh(new THREE.BoxGeometry(2.74,0.04,1.82),bHM);bh.position.y=y+0.05;bodyG.add(bh);});
+  if(t.midBand){const mb=new THREE.Mesh(new THREE.BoxGeometry(2.74,0.1,1.82),bM);bodyG.add(mb);const mbh=new THREE.Mesh(new THREE.BoxGeometry(2.74,0.03,1.82),bHM);mbh.position.y=0.035;bodyG.add(mbh);}
+  [[-1.24,-0.86],[-1.24,0.86],[1.24,-0.86],[1.24,0.86]].forEach(([x,z])=>{const cr=new THREE.Mesh(new THREE.BoxGeometry(0.12,1.6,0.12),bM);cr.position.set(x,0,z);bodyG.add(cr);});
+  const rvG=new THREE.SphereGeometry(0.075,10,10);
+  [-1.05,-0.35,0.35,1.05].forEach(x=>[-0.8,0.8].forEach(y=>[0.92,-0.92].forEach(z=>{const rv=new THREE.Mesh(rvG,rvM);rv.position.set(x,y,z);bodyG.add(rv);})));
+  const lp=new THREE.Mesh(new THREE.BoxGeometry(0.52,0.48,0.09),lkM);lp.position.set(0,0.1,0.92);bodyG.add(lp);
+  if(key==='onyx'){
+    const eyeO=new THREE.Mesh(new THREE.CylinderGeometry(0.15,0.15,0.11,16),mkMat(0x0a0018,0.5,0.5));eyeO.rotation.x=Math.PI/2;eyeO.position.set(0,0.19,0.965);bodyG.add(eyeO);
+    const eyeI=new THREE.Mesh(new THREE.CylinderGeometry(0.1,0.1,0.12,16),mkMat(0x7028d0,0.08,0.95,0x9040e0,1.8));eyeI.rotation.x=Math.PI/2;eyeI.position.set(0,0.19,0.97);bodyG.add(eyeI);
+    const eyeP=new THREE.Mesh(new THREE.CylinderGeometry(0.05,0.05,0.13,12),mkMat(0x040008,0.3,0.2));eyeP.rotation.x=Math.PI/2;eyeP.position.set(0,0.19,0.975);bodyG.add(eyeP);
+    const gl=new THREE.Mesh(new THREE.SphereGeometry(0.02,6,6),mkMat(0xffffff,0,1,0xffffff,3));gl.position.set(-0.028,0.215,0.98);bodyG.add(gl);
+    [[-1.24,-0.86],[-1.24,0.86],[1.24,-0.86],[1.24,0.86]].forEach(([x,z])=>{const sk=new THREE.Mesh(new THREE.ConeGeometry(0.09,0.65,4),mkMat(0x0c0028,0.08,0.95,0x7020c0,0.7));sk.position.set(x,0.98,z);sk.rotation.y=Math.PI/4;bodyG.add(sk);});
+    const runeM2=mkMat(0x7020d0,0.05,0.95,0x9030e0,1.0);
+    [-0.65,0,0.65].forEach(x=>{const rv2=new THREE.Mesh(new THREE.BoxGeometry(0.04,0.38,0.025),runeM2);rv2.position.set(x,0,0.885);bodyG.add(rv2);const rh2=new THREE.Mesh(new THREE.BoxGeometry(0.22,0.04,0.025),runeM2);rh2.position.set(x,0,0.885);bodyG.add(rh2);});
+  } else if(key==='diamond'){
+    const gemM=mkMat(0x60d8ff,0,1,0x30b0e0,2.0);const gm=new THREE.Mesh(new THREE.OctahedronGeometry(0.1),gemM);gm.position.set(0,0.18,0.975);gm.rotation.y=Math.PI/4;bodyG.add(gm);
+    [[-1.24,-0.86],[-1.24,0.86],[1.24,-0.86],[1.24,0.86]].forEach(([x,z])=>{const sp=new THREE.Mesh(new THREE.ConeGeometry(0.065,0.45,6),mkMat(0x60d8ff,0,1,0x30b0e0,1.5));sp.position.set(x,0.92,z);bodyG.add(sp);});
+  } else {
+    const kh=new THREE.Mesh(new THREE.CylinderGeometry(0.07,0.07,0.11,12),mkMat(t.woodDkC,0.95,0.05));kh.rotation.x=Math.PI/2;kh.position.set(0,0.19,0.968);bodyG.add(kh);
+    const khs=new THREE.Mesh(new THREE.BoxGeometry(0.05,0.12,0.11),mkMat(t.woodDkC,0.95,0.05));khs.position.set(0,0.08,0.968);bodyG.add(khs);
+  }
+  [[-1.1,-0.86],[-1.1,0.86],[1.1,-0.86],[1.1,0.86]].forEach(([x,z])=>{const ft=new THREE.Mesh(new THREE.BoxGeometry(0.16,0.12,0.16),bM);ft.position.set(x,-0.84,z);bodyG.add(ft);});
+  mg.add(bodyG);
+  const lPivot=new THREE.Group();lPivot.position.set(0,0.0,-0.86);
+  const lidLocal=new THREE.Group();lidLocal.position.set(0,0.17,0.86);lPivot.add(lidLocal);
+  const lidBox=new THREE.Mesh(new THREE.BoxGeometry(2.6,0.34,1.72),wM);lidBox.castShadow=true;lidLocal.add(lidBox);
+  const arch=new THREE.Mesh(new THREE.BoxGeometry(2.6,t.archH,1.72),wM);arch.position.set(0,0.17+t.archH*0.5,0);lidLocal.add(arch);
+  [0.19,-0.21].forEach(y=>{const b=new THREE.Mesh(new THREE.BoxGeometry(2.74,0.115,1.82),bM);b.position.set(0,y,0);b.castShadow=true;lidLocal.add(b);const bh=new THREE.Mesh(new THREE.BoxGeometry(2.74,0.04,1.82),bHM);bh.position.set(0,y+0.04,0);lidLocal.add(bh);});
+  [-1.05,-0.35,0.35,1.05].forEach(x=>[0.19,-0.21].forEach(y=>[0.92,-0.92].forEach(z=>{const rv=new THREE.Mesh(rvG,rvM);rv.position.set(x,y,z);lidLocal.add(rv);})));
+  const hasp=new THREE.Mesh(new THREE.BoxGeometry(0.46,0.14,0.09),lkM);hasp.position.set(0,-0.22,0.92);lidLocal.add(hasp);
+  if(key==='onyx'){
+    const topSk=new THREE.Mesh(new THREE.ConeGeometry(0.11,0.75,4),mkMat(0x080020,0.05,0.95,0xb050ff,1.2));topSk.position.set(0,0.17+t.archH+0.38,0);topSk.rotation.y=Math.PI/4;lidLocal.add(topSk);
+    [-0.72,0.72].forEach(x=>{const fs=new THREE.Mesh(new THREE.ConeGeometry(0.075,0.5,4),mkMat(0x0a0025,0.08,0.9,0x8030c0,0.9));fs.position.set(x,0.17+t.archH+0.25,0);fs.rotation.y=Math.PI/4;lidLocal.add(fs);});
+    const rp=new THREE.Mesh(new THREE.BoxGeometry(1.3,0.22,0.025),mkMat(0x8030d0,0.04,0.95,0xb060ff,1.5));rp.position.set(0,0.0,0.93);lidLocal.add(rp);
+    [[-1.24,-0.86],[-1.24,0.86],[1.24,-0.86],[1.24,0.86]].forEach(([x,z])=>{const csk=new THREE.Mesh(new THREE.ConeGeometry(0.07,0.45,4),mkMat(0x0c0030,0.08,0.9,0x7020c0,0.7));csk.position.set(x,0.17+t.archH+0.22,z);csk.rotation.y=Math.PI/4;lidLocal.add(csk);});
+  }
+  if(key==='diamond'){
+    [-0.8,0,0.8].forEach(x=>{const gms=new THREE.Mesh(new THREE.OctahedronGeometry(0.085),mkMat(0x60d8ff,0,1,0x30b0e0,2));gms.position.set(x,0.17+t.archH+0.085,0);gms.rotation.y=Math.PI/4;lidLocal.add(gms);});
+    [[-1.24,-0.86],[-1.24,0.86],[1.24,-0.86],[1.24,0.86]].forEach(([x,z])=>{const cp=new THREE.Mesh(new THREE.ConeGeometry(0.055,0.38,6),mkMat(0x60d8ff,0,1,0x30b0e0,1.5));cp.position.set(x,0.17+t.archH+0.19,z);lidLocal.add(cp);});
+    const latM=mkMat(0x50c0e8,0.04,1,0x30a0d8,0.8);
+    [-0.8,0,0.8].forEach(x=>{const lv=new THREE.Mesh(new THREE.BoxGeometry(0.025,0.5,0.025),latM);lv.position.set(x,0,0.93);lidLocal.add(lv);});
+  }
+  if(key==='platinum'||key==='silver'){
+    const filM=mkMat(t.bandHiC,0.04,1);
+    [[0,0.22,'h'],[0,-0.19,'h'],[-1.1,0.015,'v'],[1.1,0.015,'v']].forEach(([x,y,d])=>{const fw=d==='h'?new THREE.BoxGeometry(2.2,0.025,0.025):new THREE.BoxGeometry(0.025,0.44,0.025);const ff=new THREE.Mesh(fw,filM);ff.position.set(x,y,0.93);lidLocal.add(ff);});
+  }
+  mg.add(lPivot);lidPivot=lPivot;
+  const ig=new THREE.PointLight(t.glowC,0,5);ig.position.set(0,-0.5,0);mg.add(ig);glowPt=ig;
+  scene.add(mg);masterGroup=mg;
+  document.getElementById('tier-label').textContent=t.label+' CHEST';
+  document.getElementById('tier-label').style.color=t.labelColor;
+  const ob=document.getElementById('open-btn');ob.style.color=t.btnColor;ob.style.borderColor=t.btnBorder;ob.style.display='block';ob.disabled=false;
+  resetUI();onTierChange();
+}
+
+function spawnParticles(){
+  const t=TD[activeTier];const colors=t.parts.map(c=>new THREE.Color(c));
+  for(let i=0;i<85;i++){
+    const isGem=activeTier==='diamond'&&Math.random()>0.55;const sz=0.018+Math.random()*0.055;
+    const geo=isGem?new THREE.OctahedronGeometry(sz):new THREE.SphereGeometry(sz,6,6);
+    const m=new THREE.MeshBasicMaterial({color:colors[Math.floor(Math.random()*colors.length)],transparent:true});
+    const p=new THREE.Mesh(geo,m);p.position.set((Math.random()-0.5)*0.5,-0.2,(Math.random()-0.5)*0.35);
+    const ang=Math.random()*Math.PI*2,spd=0.04+Math.random()*0.08;
+    p.userData={vx:Math.cos(ang)*spd,vy:0.06+Math.random()*0.1,vz:Math.sin(ang)*spd*0.5,life:1,decay:0.01+Math.random()*0.013,spin:(Math.random()-0.5)*0.12};
+    scene.add(p);particleMeshes.push(p);
+  }
+}
+function tickParticles(){
+  particleMeshes=particleMeshes.filter(p=>{
+    p.userData.life-=p.userData.decay;if(p.userData.life<=0){p.geometry.dispose();p.material.dispose();scene.remove(p);return false;}
+    p.userData.vy-=0.002;p.position.x+=p.userData.vx;p.position.y+=p.userData.vy;p.position.z+=p.userData.vz;p.rotation.y+=p.userData.spin;p.material.opacity=Math.max(0,p.userData.life);return true;
+  });
+}
+
+function resetUI(){
+  document.getElementById('result-title').classList.remove('show');
+  document.getElementById('gold-row').classList.remove('show');
+  document.getElementById('items-list').innerHTML='';
+  const db=document.getElementById('done-btn');db.classList.remove('show');db.style.display='none';
+}
+
+function showResults(guaranteedItem){
+  const t=TD[activeTier];
+  let items=pickItems(activeTier);
+  if(guaranteedItem){
+    const insertAt=Math.floor(Math.random()*(items.length+1));
+    items.splice(insertAt,0,{name:guaranteedItem.name,type:guaranteedItem.type||'Special',notes:guaranteedItem.notes||''});
+  }
+  const gold=rollGold(LOOT[activeTier].gold);
+  const list=document.getElementById('items-list');list.innerHTML='';
+  items.forEach(item=>{
+    const li=document.createElement('li');const notes=item.notes?`<div class="item-notes">${item.notes}</div>`:'';
+    li.innerHTML=`<div class="item-left"><div class="item-name">${tIcon(item.type)} ${item.name}</div>${notes}</div><span class="item-rarity ${rClass(item.type)}">${rLabel(item.type)}</span>`;
+    list.appendChild(li);
+  });
+  const rt=document.getElementById('result-title');rt.textContent=`✦ ${t.label} CHEST REWARDS ✦`;rt.style.color=t.labelColor;
+  document.getElementById('gold-amt').textContent=`${gold.toLocaleString()} gp`;
+  setTimeout(()=>{
+    rt.classList.add('show');document.getElementById('gold-row').classList.add('show');
+    list.querySelectorAll('li').forEach((li,i)=>setTimeout(()=>li.classList.add('show'),(i+1)*150));
+    setTimeout(()=>{const db=document.getElementById('done-btn');db.style.display='block';setTimeout(()=>db.classList.add('show'),50);},items.length*150+400);
+  },600);
+}
+
+function startOpen(){
+  if(isOpen||opening||uiLocked)return;
+  uiLocked=true;
+  document.getElementById('open-btn').disabled=true;
+  isOpen=true;opening=true;targetLid=MAX_LID;
+  // Read guaranteed item from Sheets before showing results
+  sheetsRead().then(guaranteed=>{
+    setTimeout(()=>{
+      spawnParticles();
+      showResults(guaranteed);
+      // Clear from Sheets after reading so it only fires once
+      if(guaranteed&&guaranteed.name){
+        sheetsClear();
+        if(dmUnlocked){
+          refreshDmQueue();
+          setStatus('Item delivered and queue cleared.');
+          setTimeout(()=>setStatus(''),3000);
+        }
+      }
+    },420);
+  }).catch(()=>{
+    // If Sheets call fails, open normally without guaranteed item
+    setTimeout(()=>{spawnParticles();showResults(null);},420);
+  });
+}
+
+function resetChest(){uiLocked=false;buildChest(activeTier);}
+canvas.addEventListener('click',startOpen);
+
+const bw=document.getElementById('tier-btns');
+Object.entries(TD).forEach(([key,t])=>{
+  const b=document.createElement('button');b.className='tbtn';b.textContent=t.label;b.dataset.tier=key;
+  b.style.color=key==='bronze'?t.btnText:t.btnColor;b.style.borderColor=t.btnBorder;b.style.background=key==='bronze'?t.btnColor:'transparent';
+  b.onclick=()=>{if(uiLocked)return;document.querySelectorAll('.tbtn').forEach(btn=>{const tt=TD[btn.dataset.tier];btn.style.background='transparent';btn.style.color=tt.btnColor;});b.style.background=t.btnColor;b.style.color=t.btnText;buildChest(key);};
+  bw.appendChild(b);
+});
+
+function animate(){
+  requestAnimationFrame(animate);idleT+=0.016;
+  if(masterGroup){if(!uiLocked)masterGroup.rotation.y=Math.sin(idleT*0.42)*0.16;else masterGroup.rotation.y+=(0-masterGroup.rotation.y)*0.07;}
+  if(opening&&lidPivot){lidAngle+=(targetLid-lidAngle)*0.062;lidPivot.rotation.x=lidAngle;if(glowPt)glowPt.intensity=(Math.abs(lidAngle)/Math.abs(MAX_LID))*TD[activeTier].glowMax;if(Math.abs(lidAngle-targetLid)<0.005){lidAngle=targetLid;opening=false;}}
+  if((activeTier==='onyx'||activeTier==='diamond')&&masterGroup){const pulse=0.5+Math.sin(idleT*2.8)*0.5;masterGroup.traverse(o=>{if(o.isMesh&&o.material&&o.material.emissiveIntensity>0)o.material.emissiveIntensity=o.material.emissiveIntensity*(0.8+pulse*0.2);});}
+  tickParticles();renderer.render(scene,camera);
+}
+
+buildChest('bronze');animate();
 </script>
-</body>
-</html>

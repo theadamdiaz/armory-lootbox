@@ -302,15 +302,36 @@ function showResults(guaranteed){
   setTimeout(()=>{rt.classList.add('show');document.getElementById('gold-row').classList.add('show');list.querySelectorAll('li').forEach((li,i)=>setTimeout(()=>li.classList.add('show'),(i+1)*150));setTimeout(()=>{const db=document.getElementById('done-btn');db.style.display='block';setTimeout(()=>db.classList.add('show'),50);},items.length*150+400);},600);
 }
 
+// Prefetch: start Sheets read immediately, resolve before player even clicks
+let prefetchPromise = null;
+function prefetchQueue(){
+  prefetchPromise = Promise.race([
+    sheetsRead(),
+    new Promise(resolve=>setTimeout(()=>resolve(null),3000)) // 3s timeout fallback
+  ]).catch(()=>null);
+}
+
 function startOpen(){
   if(isOpen||opening||uiLocked)return;
   uiLocked=true;document.getElementById('open-btn').disabled=true;isOpen=true;opening=true;targetLid=MAX_LID;
-  sheetsRead().then(guaranteed=>{
-    setTimeout(()=>{spawnParticles();showResults(guaranteed);if(guaranteed&&guaranteed.name){sheetsClear();if(dmUnlocked){refreshDmQueue();setStatus('Item delivered and queue cleared.');setTimeout(()=>setStatus(''),3000);}}},420);
-  }).catch(()=>{setTimeout(()=>{spawnParticles();showResults(null);},420);});
+  // Use prefetched result — should already be resolved by the time player clicks
+  const queuePromise = prefetchPromise || sheetsRead().catch(()=>null);
+  Promise.race([
+    queuePromise,
+    new Promise(resolve=>setTimeout(()=>resolve(null),400)) // never hold up animation
+  ]).then(guaranteed=>{
+    setTimeout(()=>{
+      spawnParticles();
+      showResults(guaranteed);
+      if(guaranteed&&guaranteed.name){
+        sheetsClear();
+        if(dmUnlocked){refreshDmQueue();setStatus('Item delivered and queue cleared.');setTimeout(()=>setStatus(''),3000);}
+      }
+    },420);
+  });
 }
 
-function resetChest(){uiLocked=false;buildChest(activeTier);}
+function resetChest(){uiLocked=false;prefetchQueue();buildChest(activeTier);}
 canvas.addEventListener('click',startOpen);
 
 const bw=document.getElementById('tier-btns');
@@ -329,7 +350,7 @@ function animate(){
   tickParticles();renderer.render(scene,camera);
 }
 
-buildChest('bronze');animate();
+buildChest('bronze');animate();prefetchQueue();
 </script>
 </body>
 </html>

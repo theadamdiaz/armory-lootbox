@@ -176,7 +176,7 @@ function closeDmPanel(){document.getElementById('dm-panel').classList.remove('vi
 function refreshDmQueue(){setStatus('Checking queue...');sheetsRead().then(data=>{if(data&&data.name){document.getElementById('dm-item-name').textContent=data.name;document.getElementById('dm-item-name').style.color='#c090ff';document.getElementById('dm-item-name').style.fontStyle='normal';document.getElementById('dm-clear-btn').style.display='inline-block';setStatus('Item queued — will deliver on next open.');}else{document.getElementById('dm-item-name').textContent='No guaranteed item set';document.getElementById('dm-item-name').style.color='#4a2080';document.getElementById('dm-item-name').style.fontStyle='italic';document.getElementById('dm-clear-btn').style.display='none';setStatus('');}}).catch(()=>setStatus('Could not reach queue.'));}
 function populateDmSelect(){const sel=document.getElementById('dm-select');sel.innerHTML='<option value="">— pick existing item —</option>';sel.appendChild(Object.assign(document.createElement('option'),{value:'__custom__',text:'+ Create custom item...'}));LOOT[activeTier].table.forEach((item,i)=>{const opt=document.createElement('option');opt.value=i;opt.text=item.name;sel.appendChild(opt);});}
 function onSelectChange(){const val=document.getElementById('dm-select').value;const isCustom=val==='__custom__';document.getElementById('dm-custom-input').style.display=isCustom?'block':'none';document.getElementById('dm-type-select').style.display=isCustom?'block':'none';}
-function setGuaranteed(){const val=document.getElementById('dm-select').value;if(!val){setStatus('Please select an item.');return;}let name,type,notes;if(val==='__custom__'){name=document.getElementById('dm-custom-input').value.trim();if(!name){setStatus('Please enter a custom item name.');return;}type=document.getElementById('dm-type-select').value;notes='DM awarded';}else{const item=LOOT[activeTier].table[+val];name=item.name;type=item.type;notes=item.notes||'';}setStatus('Saving to queue...');sheetsSet(name,type,notes).then(r=>{if(r&&r.ok){refreshDmQueue();prefetchQueue();setStatus('Item queued — ready for next open.');setTimeout(()=>setStatus(''),2500);}else{setStatus('Failed to save. Check connection.');}}).catch(()=>setStatus('Failed to reach queue.'));}
+function setGuaranteed(){const val=document.getElementById('dm-select').value;if(!val){setStatus('Please select an item.');return;}let name,type,notes;if(val==='__custom__'){name=document.getElementById('dm-custom-input').value.trim();if(!name){setStatus('Please enter a custom item name.');return;}type=document.getElementById('dm-type-select').value;notes='DM awarded';}else{const item=LOOT[activeTier].table[+val];name=item.name;type=item.type;notes=item.notes||'';}setStatus('Saving to queue...');sheetsSet(name,type,notes).then(r=>{if(r&&r.ok){refreshDmQueue();setStatus('Item queued — ready for next open.');setTimeout(()=>setStatus(''),2500);}else{setStatus('Failed to save. Check connection.');}}).catch(()=>setStatus('Failed to reach queue.'));}
 function clearGuaranteed(){setStatus('Clearing...');sheetsClear().then(()=>{refreshDmQueue();setStatus('Cleared.');setTimeout(()=>setStatus(''),1500);});}
 function setStatus(msg){document.getElementById('dm-status').textContent=msg;}
 function onTierChange(){if(dmUnlocked&&document.getElementById('dm-panel').classList.contains('visible'))populateDmSelect();}
@@ -302,36 +302,29 @@ function showResults(guaranteed){
   setTimeout(()=>{rt.classList.add('show');document.getElementById('gold-row').classList.add('show');list.querySelectorAll('li').forEach((li,i)=>setTimeout(()=>li.classList.add('show'),(i+1)*150));setTimeout(()=>{const db=document.getElementById('done-btn');db.style.display='block';setTimeout(()=>db.classList.add('show'),50);},items.length*150+400);},600);
 }
 
-// Prefetch: start Sheets read immediately, resolve before player even clicks
-let prefetchPromise = null;
-function prefetchQueue(){
-  prefetchPromise = Promise.race([
-    sheetsRead(),
-    new Promise(resolve=>setTimeout(()=>resolve(null),3000)) // 3s timeout fallback
-  ]).catch(()=>null);
-}
-
 function startOpen(){
   if(isOpen||opening||uiLocked)return;
   uiLocked=true;document.getElementById('open-btn').disabled=true;isOpen=true;opening=true;targetLid=MAX_LID;
-  // Use prefetched result — should already be resolved by the time player clicks
-  const queuePromise = prefetchPromise || sheetsRead().catch(()=>null);
-  Promise.race([
-    queuePromise,
-    new Promise(resolve=>setTimeout(()=>resolve(null),400)) // never hold up animation
-  ]).then(guaranteed=>{
-    setTimeout(()=>{
-      spawnParticles();
+  // Fire animation and Sheets call simultaneously — don't wait for Sheets before animating
+  const sheetsPromise=Promise.race([
+    sheetsRead().catch(()=>null),
+    new Promise(resolve=>setTimeout(()=>resolve(null),2000))
+  ]);
+  // Particles fire at 420ms regardless
+  setTimeout(()=>spawnParticles(),420);
+  // Loot reveals at 820ms — Sheets has had 820ms to respond, plenty of time
+  setTimeout(()=>{
+    sheetsPromise.then(guaranteed=>{
       showResults(guaranteed);
       if(guaranteed&&guaranteed.name){
         sheetsClear();
         if(dmUnlocked){refreshDmQueue();setStatus('Item delivered and queue cleared.');setTimeout(()=>setStatus(''),3000);}
       }
-    },420);
-  });
+    });
+  },820);
 }
 
-function resetChest(){uiLocked=false;prefetchQueue();buildChest(activeTier);}
+function resetChest(){uiLocked=false;buildChest(activeTier);}
 canvas.addEventListener('click',startOpen);
 
 const bw=document.getElementById('tier-btns');
@@ -350,7 +343,7 @@ function animate(){
   tickParticles();renderer.render(scene,camera);
 }
 
-buildChest('bronze');animate();prefetchQueue();
+buildChest('bronze');animate();
 </script>
 </body>
 </html>

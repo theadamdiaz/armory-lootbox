@@ -372,23 +372,27 @@ function showResults(guaranteed){
 function startOpen(){
   if(isOpen||opening||uiLocked)return;
   uiLocked=true;document.getElementById('open-btn').disabled=true;isOpen=true;opening=true;targetLid=MAX_LID;
-  // Fire animation and Sheets call simultaneously — don't wait for Sheets before animating
+  const openTime=Date.now();
+  // Fire Sheets read immediately alongside animation
   const sheetsPromise=Promise.race([
     sheetsRead().catch(()=>null),
-    new Promise(resolve=>setTimeout(()=>resolve(null),2000))
+    new Promise(resolve=>setTimeout(()=>resolve(null),4000))
   ]);
-  // Particles fire at 420ms regardless
+  // Particles always fire at 420ms
   setTimeout(()=>spawnParticles(),420);
-  // Loot reveals at 820ms — Sheets has had 820ms to respond, plenty of time
-  setTimeout(()=>{
-    sheetsPromise.then(guaranteed=>{
+  // Wait for Sheets response, but enforce a minimum 900ms delay (lid animation)
+  // and a maximum 4000ms wait before giving up and showing without guaranteed item
+  sheetsPromise.then(guaranteed=>{
+    const elapsed=Date.now()-openTime;
+    const remaining=Math.max(900-elapsed,0);
+    setTimeout(()=>{
       showResults(guaranteed);
       if(guaranteed&&guaranteed.name){
         sheetsClear();
         if(dmUnlocked){refreshDmQueue();setStatus('Item delivered and queue cleared.');setTimeout(()=>setStatus(''),3000);}
       }
-    });
-  },820);
+    },remaining);
+  });
 }
 
 function resetChest(){uiLocked=false;buildChest(activeTier);}

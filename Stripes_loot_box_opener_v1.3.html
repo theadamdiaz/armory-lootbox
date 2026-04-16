@@ -248,7 +248,7 @@ function parseLootCSV(csv){
 }
 
 function loadLootFromSheet(){
-  fetch(SHEET_CSV_URL)
+  fetch(SHEET_CSV_URL + '&t=' + Date.now())
     .then(r=>r.text())
     .then(csv=>{parseLootCSV(csv);console.log('Loot tables loaded from Sheet.');})
     .catch(()=>console.log('Sheet unavailable — using fallback loot tables.'));

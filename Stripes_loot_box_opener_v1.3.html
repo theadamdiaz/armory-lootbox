@@ -371,7 +371,7 @@ function showResults(guaranteed){
 
 function startOpen(){
   if(isOpen||opening||uiLocked)return;
-  uiLocked=true;document.getElementById('open-btn').disabled=true;isOpen=true;opening=true;targetLid=MAX_LID;
+  uiLocked=true;document.getElementById('open-btn').disabled=true;isOpen=true;opening=true;targetLid=MAX_LID; new Audio('lootbox_open.wav').play();
   const openTime=Date.now();
   // Fire Sheets read immediately alongside animation
   const sheetsPromise=Promise.race([

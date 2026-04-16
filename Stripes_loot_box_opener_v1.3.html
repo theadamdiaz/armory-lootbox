@@ -227,7 +227,7 @@ function parseLootCSV(csv){
   for(const line of lines){
     const cols=parseCSVLine(line);
     // Detect tier header rows e.g. "Bronze Tier"
-    const first=(cols[0]||'').toLowerCase();
+    const first=(cols[0]||cols[1]||'').toLowerCase();
     for(const key of Object.keys(tierMap)){
       if(first.includes(key)&&first.includes('tier')){currentTier=key;if(!built[key])built[key]={...TIER_META[key],table:[]};break;}
     }

@@ -382,6 +382,7 @@ function startOpen(){
         _doOpen();
       } else {
         document.getElementById('open-btn').textContent='You need a key!';
+        new Audio('lootbox_fail.wav').play();
         setTimeout(()=>{document.getElementById('open-btn').textContent='OPEN CHEST';},3000);
       }
     });

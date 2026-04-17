@@ -381,8 +381,8 @@ function startOpen(){
         consumeUnlock();
         _doOpen();
       } else {
-        setStatus('You need a key!');
-        setTimeout(()=>setStatus(''),3000);
+        document.getElementById('open-btn').textContent='You need a key!';
+        setTimeout(()=>{document.getElementById('open-btn').textContent='OPEN CHEST';},3000);
       }
     });
     return;

@@ -162,6 +162,8 @@ function sheetsCall(params){const qs=Object.entries(params).map(([k,v])=>`${enco
 function sheetsRead(){return sheetsCall({action:'read'});}
 function sheetsSet(name,type,notes){return sheetsCall({action:'set',name,type,notes});}
 function sheetsClear(){return sheetsCall({action:'clear'});}
+function checkUnlock(){return sheetsCall({action:'checkUnlock'});}
+function consumeUnlock(){return sheetsCall({action:'consume'});}
 
 const CHALLENGES=[{name:'Harry Tasker',code:'10024'},{name:'Albert Gibson',code:'34991'}];
 let currentChallenge=null,dmUnlocked=false;
@@ -371,6 +373,21 @@ function showResults(guaranteed){
 
 function startOpen(){
   if(isOpen||opening||uiLocked)return;
+  if(!dmUnlocked){
+    checkUnlock().then(data=>{
+      if(data&&data.unlocked){
+        consumeUnlock();
+        _doOpen();
+      } else {
+        setStatus('Chest is locked. Ask your DM to unlock it.');
+        setTimeout(()=>setStatus(''),3000);
+      }
+    });
+    return;
+  }
+  _doOpen();
+}
+function _doOpen(){
   uiLocked=true;document.getElementById('open-btn').disabled=true;isOpen=true;opening=true;targetLid=MAX_LID; new Audio('lootbox_open.wav').play();
   const openTime=Date.now();
   // Fire Sheets read immediately alongside animation

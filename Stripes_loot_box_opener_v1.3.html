@@ -374,12 +374,14 @@ function showResults(guaranteed){
 function startOpen(){
   if(isOpen||opening||uiLocked)return;
   if(!dmUnlocked){
+    document.getElementById('open-btn').textContent='Unlocking...';
     checkUnlock().then(data=>{
+      document.getElementById('open-btn').textContent='OPEN CHEST';
       if(data&&data.unlocked){
         consumeUnlock();
         _doOpen();
       } else {
-        setStatus('Chest is locked. Ask your DM to unlock it.');
+        setStatus('You need a key!');
         setTimeout(()=>setStatus(''),3000);
       }
     });
